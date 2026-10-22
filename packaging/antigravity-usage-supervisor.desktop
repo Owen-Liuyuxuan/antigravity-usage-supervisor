@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Antigravity Usage Supervisor Preferences
+Comment=Configure the Google Antigravity top-panel usage indicator
+Exec=antigravity-usage-supervisor-preferences
+Icon=antigravity-usage-supervisor
+Terminal=false
+Categories=Development;
+Keywords=Antigravity;Gemini;Google AI Pro;usage;tokens;focus;productivity;preferences;
+StartupNotify=true

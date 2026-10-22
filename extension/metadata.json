@@ -1,0 +1,7 @@
+{
+  "uuid": "antigravity-usage-supervisor@owen.local",
+  "name": "Antigravity Usage Supervisor",
+  "description": "A local Google Antigravity and Google AI Pro allowance and activity indicator for the GNOME top panel.",
+  "version": 1,
+  "shell-version": ["42", "43", "44"]
+}

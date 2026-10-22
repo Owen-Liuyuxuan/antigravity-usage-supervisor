@@ -1,0 +1,9 @@
+[Unit]
+Description=Local Google Antigravity usage metrics service
+
+[Service]
+Type=dbus
+BusName=io.github.owen.AntigravityUsageSupervisor
+ExecStart=/usr/bin/antigravity-usage-supervisor-service
+Restart=on-failure
+RestartSec=2

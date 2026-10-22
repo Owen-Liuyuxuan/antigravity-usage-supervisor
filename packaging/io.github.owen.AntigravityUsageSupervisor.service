@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=io.github.owen.AntigravityUsageSupervisor
+Exec=/usr/bin/antigravity-usage-supervisor-service
+SystemdService=antigravity-usage-supervisor.service

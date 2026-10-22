@@ -1,0 +1,167 @@
+.agy-panel-box {
+  spacing: 6px;
+}
+
+.agy-panel-icon {
+  color: #4ea8ff;
+}
+
+.agy-warning {
+  color: #ffb86b;
+}
+
+.agy-critical {
+  color: #ff7188;
+}
+
+.agy-popover {
+  width: 320px;
+  padding: 8px 10px 4px;
+  spacing: 8px;
+}
+
+.agy-header {
+  padding-bottom: 8px;
+}
+
+.agy-wordmark,
+.agy-section-label {
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #4ea8ff;
+}
+
+.agy-live {
+  font-size: 0.72em;
+  font-weight: 700;
+  color: #62d9a2;
+}
+
+.agy-error {
+  color: #ff7188;
+}
+
+.agy-stale {
+  color: #ffb86b;
+}
+
+.agy-hero-value {
+  font-size: 2.35em;
+  font-weight: 700;
+  padding-top: 2px;
+}
+
+.agy-caption,
+.agy-model-meta,
+.agy-reset,
+.agy-task-meta,
+.agy-task-time,
+.agy-empty {
+  color: #9ca3b5;
+}
+
+.agy-caption {
+  font-size: 0.9em;
+  padding-bottom: 5px;
+}
+
+.agy-model-meta {
+  font-size: 0.8em;
+  padding-top: 2px;
+}
+
+.agy-progress-track {
+  width: 320px;
+  height: 5px;
+  background-color: rgba(156, 163, 181, 0.22);
+  border-radius: 3px;
+}
+
+.agy-progress-fill {
+  height: 5px;
+  border-radius: 3px;
+}
+
+.agy-progress-primary {
+  background-color: #4ea8ff;
+}
+
+.agy-progress-secondary {
+  background-color: #9b87f5;
+}
+
+.agy-secondary-header {
+  padding-top: 10px;
+}
+
+.agy-secondary-value {
+  font-weight: 600;
+}
+
+.agy-reset {
+  font-size: 0.82em;
+}
+
+.agy-other-group {
+  font-size: 0.78em;
+  color: #9ca3b5;
+  padding-top: 4px;
+}
+
+.agy-divider {
+  height: 1px;
+  margin: 10px 0 8px;
+  background-color: rgba(156, 163, 181, 0.18);
+}
+
+.agy-stats {
+  padding: 5px 0 4px;
+}
+
+.agy-stat {
+  spacing: 2px;
+}
+
+.agy-stat-value {
+  font-size: 1.1em;
+  font-weight: 650;
+}
+
+.agy-stat-label {
+  font-size: 0.69em;
+  color: #9ca3b5;
+}
+
+.agy-recent-list {
+  spacing: 1px;
+}
+
+.agy-recent-row {
+  spacing: 10px;
+  padding: 7px 0;
+}
+
+.agy-activity-dot {
+  color: #4ea8ff;
+  font-size: 0.68em;
+  padding-top: 4px;
+}
+
+.agy-activity-running {
+  color: #62d9a2;
+}
+
+.agy-task-name {
+  font-weight: 550;
+  max-width: 225px;
+}
+
+.agy-task-meta,
+.agy-task-time {
+  font-size: 0.8em;
+}
+
+.agy-task-time {
+  padding-top: 2px;
+}
