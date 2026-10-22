@@ -149,19 +149,27 @@ class AntigravityIndicator extends PanelMenu.Button {
         this._modelMeta = new St.Label({ text: '', style_class: 'agy-model-meta' });
         body.add_child(this._modelMeta);
 
-        const secondaryHeader = new St.BoxLayout({ style_class: 'agy-secondary-header' });
-        this._secondaryName = new St.Label({ text: '7-day allowance', x_expand: true });
-        this._secondaryValue = new St.Label({ text: '—', style_class: 'agy-secondary-value' });
-        secondaryHeader.add_child(this._secondaryName);
-        secondaryHeader.add_child(this._secondaryValue);
-        body.add_child(secondaryHeader);
-        this._secondaryBar = new ProgressLine('agy-progress-secondary');
-        body.add_child(this._secondaryBar.actor);
-        this._secondaryReset = new St.Label({ text: '', style_class: 'agy-reset' });
-        body.add_child(this._secondaryReset);
+        const claude5hHeader = new St.BoxLayout({ style_class: 'agy-secondary-header' });
+        this._claude5hName = new St.Label({ text: '5-hour allowance (Claude & GPT)', x_expand: true });
+        this._claude5hValue = new St.Label({ text: '—', style_class: 'agy-secondary-value' });
+        claude5hHeader.add_child(this._claude5hName);
+        claude5hHeader.add_child(this._claude5hValue);
+        body.add_child(claude5hHeader);
+        this._claude5hBar = new ProgressLine('agy-progress-secondary');
+        body.add_child(this._claude5hBar.actor);
+        this._claude5hReset = new St.Label({ text: '', style_class: 'agy-reset' });
+        body.add_child(this._claude5hReset);
 
-        this._otherGroupSummary = new St.Label({ text: '', style_class: 'agy-other-group' });
-        body.add_child(this._otherGroupSummary);
+        const claude7dHeader = new St.BoxLayout({ style_class: 'agy-secondary-header' });
+        this._claude7dName = new St.Label({ text: '7-day allowance (Claude & GPT)', x_expand: true });
+        this._claude7dValue = new St.Label({ text: '—', style_class: 'agy-secondary-value' });
+        claude7dHeader.add_child(this._claude7dName);
+        claude7dHeader.add_child(this._claude7dValue);
+        body.add_child(claude7dHeader);
+        this._claude7dBar = new ProgressLine('agy-progress-tertiary');
+        body.add_child(this._claude7dBar.actor);
+        this._claude7dReset = new St.Label({ text: '', style_class: 'agy-reset' });
+        body.add_child(this._claude7dReset);
 
         body.add_child(new St.Widget({ style_class: 'agy-divider' }));
         body.add_child(new St.Label({ text: 'TODAY', style_class: 'agy-section-label' }));
@@ -236,24 +244,20 @@ class AntigravityIndicator extends PanelMenu.Button {
             ? planName
             : `ANTIGRAVITY · ${planName}`;
 
-        const primary = limits.primary;
-        const secondary = limits.secondary;
-        if (primary) {
-            const pct5h = formatPercent(primary.used_percent);
-            if (secondary) {
-                const pct7d = formatPercent(secondary.used_percent);
-                this._panelLabel.text = `AGY 5h ${pct5h} · 7d ${pct7d}`;
-            } else {
-                this._panelLabel.text = `AGY ${pct5h}`;
-            }
-            this._primaryValue.text = `${pct5h} used`;
-            this._primaryCaption.text = `${windowName(primary)}  ·  ${resetText(primary.resets_at)}`;
-            this._primaryBar.setFraction(Number(primary.used_percent || 0) / 100);
-            const maxPct = Math.max(
-                Number(primary.used_percent || 0),
-                Number(secondary ? secondary.used_percent || 0 : 0)
-            );
-            this._setUrgency(maxPct);
+        const groups = limits.groups || [];
+        const geminiGroup = groups.find(g => g.group_id === 'gemini');
+        const claudeGroup = groups.find(g => g.group_id === 'claude_gpt');
+        const gemini5h = limits.gemini_5h || (geminiGroup && geminiGroup.five_hour) || limits.primary;
+        const claude5h = limits.claude_gpt_5h || (claudeGroup && claudeGroup.five_hour) || limits.secondary;
+        const claude7d = limits.claude_gpt_weekly || (claudeGroup && claudeGroup.weekly);
+
+        if (gemini5h) {
+            const pctGemini5h = formatPercent(gemini5h.used_percent);
+            this._panelLabel.text = `AGY ${pctGemini5h}`;
+            this._primaryValue.text = `${pctGemini5h} used`;
+            this._primaryCaption.text = `${windowName(gemini5h)}  ·  ${resetText(gemini5h.resets_at)}`;
+            this._primaryBar.setFraction(Number(gemini5h.used_percent || 0) / 100);
+            this._setUrgency(Number(gemini5h.used_percent || 0));
         } else {
             this._panelLabel.text = 'AGY —';
             this._primaryValue.text = 'No allowance data';
@@ -266,31 +270,28 @@ class AntigravityIndicator extends PanelMenu.Button {
         const metaParts = [activeModel, email].filter(Boolean);
         this._modelMeta.text = metaParts.join('  ·  ');
 
-        if (secondary) {
-            this._secondaryName.text = windowName(secondary);
-            this._secondaryValue.text = `${formatPercent(secondary.used_percent)} used`;
-            this._secondaryReset.text = resetText(secondary.resets_at);
-            this._secondaryBar.setFraction(Number(secondary.used_percent || 0) / 100);
+        if (claude5h) {
+            this._claude5hName.text = windowName(claude5h);
+            this._claude5hValue.text = `${formatPercent(claude5h.used_percent)} used`;
+            this._claude5hReset.text = resetText(claude5h.resets_at);
+            this._claude5hBar.setFraction(Number(claude5h.used_percent || 0) / 100);
         } else {
-            this._secondaryName.text = '7-day allowance';
-            this._secondaryValue.text = 'Not reported';
-            this._secondaryReset.text = '';
-            this._secondaryBar.setFraction(0);
+            this._claude5hName.text = '5-hour allowance (Claude & GPT)';
+            this._claude5hValue.text = 'Not reported';
+            this._claude5hReset.text = '';
+            this._claude5hBar.setFraction(0);
         }
 
-        const groups = limits.groups || [];
-        const primaryBucket = primary ? (primary.bucket_id || '') : '';
-        const otherGroup = groups.find(g =>
-            primaryBucket.startsWith('gemini') ? g.group_id === 'claude_gpt' : g.group_id === 'gemini'
-        );
-        if (otherGroup && (otherGroup.five_hour || otherGroup.weekly)) {
-            const p5h = otherGroup.five_hour ? `${formatPercent(otherGroup.five_hour.used_percent)} (5h)` : '—';
-            const p7d = otherGroup.weekly ? `${formatPercent(otherGroup.weekly.used_percent)} (7d)` : '—';
-            this._otherGroupSummary.text = `${otherGroup.display_name}: ${p5h}  ·  ${p7d}`;
-            this._otherGroupSummary.show();
+        if (claude7d) {
+            this._claude7dName.text = windowName(claude7d);
+            this._claude7dValue.text = `${formatPercent(claude7d.used_percent)} used`;
+            this._claude7dReset.text = resetText(claude7d.resets_at);
+            this._claude7dBar.setFraction(Number(claude7d.used_percent || 0) / 100);
         } else {
-            this._otherGroupSummary.text = '';
-            this._otherGroupSummary.hide();
+            this._claude7dName.text = '7-day allowance (Claude & GPT)';
+            this._claude7dValue.text = 'Not reported';
+            this._claude7dReset.text = '';
+            this._claude7dBar.setFraction(0);
         }
 
         const today = summary.today || {};

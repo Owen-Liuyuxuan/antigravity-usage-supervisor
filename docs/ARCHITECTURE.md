@@ -11,7 +11,8 @@ flowchart LR
     H -->|"Google AI Pro quota buckets"| C
     C <-->|"atomic JSON cache"| N["~/.cache/antigravity-usage-supervisor"]
     C -->|"GetSummary / UsageChanged"| D["GNOME Shell extension"]
-    E["Libadwaita preferences"] --> F["~/.config/antigravity-usage-supervisor/settings.json"]
+    C -->|"GetSummary / Refresh / UsageChanged"| E["Libadwaita detail & preferences"]
+    E --> F["~/.config/antigravity-usage-supervisor/settings.json"]
     F --> C
 ```
 
@@ -39,7 +40,7 @@ accounts:
 1. **Cloud Code Assist API (`daily-cloudcode-pa.googleapis.com` & `cloudcode-pa.googleapis.com`):**
    - Reads OAuth credentials stored by `agy` in GNOME Keyring (`service="gemini", username="antigravity"`) or `~/.config/antigravity/plugin-secrets.json`.
    - Refreshes expired OAuth access tokens in-memory via `oauth2.googleapis.com/token`.
-   - Calls `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` to obtain real-time `remainingFraction` and `resetTime` for both **Gemini Models** (5-hour and 7-day windows) and **Claude & GPT Models** (5-hour and 7-day windows).
+   - Calls `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` to obtain real-time `remainingFraction` and `resetTime` for **Gemini Models** (5-hour window) and **Claude & GPT Models** (5-hour and 7-day windows).
 2. **Local Language Server Connect-RPC (`language_server_linux_x64`):**
    - Fallback to `POST /exa.language_server_pb.LanguageServerService/GetUserStatus` when an authenticated local IDE language server is active.
 3. **Network Cache (`src/antigravity_usage_supervisor/network_cache.py`):**

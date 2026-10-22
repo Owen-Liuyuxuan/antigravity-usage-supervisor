@@ -2,8 +2,11 @@
 
 ## Where the visualization lives
 
-The application launcher opens **preferences only**. The live visualization is
-the `AGY <percent>%` indicator in the upper-right GNOME panel.
+The application launcher (**Antigravity Usage Supervisor**) opens the Libadwaita
+detail & preferences window showing all three quota limits (**Gemini 5h**,
+**Claude & GPT 5h**, and **Claude & GPT 7d**) and configuration settings. The
+core top-panel visualization is the `AGY <percent>%` indicator in the upper-right
+GNOME panel, which reports the **Gemini 5-hour allowance**.
 
 After installing the package or running `./packaging/install_user.sh`, enable
 the extension:
@@ -23,11 +26,12 @@ systemctl --user daemon-reload
 systemctl --user restart antigravity-usage-supervisor.service
 ```
 
-Click the `AGY` panel indicator to see:
+Click the `AGY` panel indicator (which reports the core Gemini 5-hour limit) to see:
 
-- current primary model group 5-hour allowance usage and reset countdown;
+- **5-hour allowance (Gemini)** hero usage bar and reset countdown;
 - active model name (e.g. `Gemini 4 Argon (Medium)`) and signed-in Google AI Pro account;
-- secondary model group (`Claude & GPT 5-hour allowance`) and 7-day weekly limit status;
+- **5-hour allowance (Claude & GPT)** usage bar and reset countdown;
+- **7-day allowance (Claude & GPT)** usage bar and reset countdown;
 - today's tasks, estimated focus time, and local token count (including subagents);
 - the three most recently active Antigravity conversations (`active` indicator when running).
 

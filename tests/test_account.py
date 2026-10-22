@@ -76,10 +76,18 @@ class AccountLimitsTest(unittest.TestCase):
         self.assertIsNotNone(limits.primary)
         self.assertEqual(limits.primary.used_percent, 2.5)
         self.assertEqual(limits.primary.window_minutes, 300)
+        self.assertEqual(limits.primary.bucket_id, "gemini-5h")
         self.assertIsNotNone(limits.secondary)
-        self.assertEqual(limits.secondary.used_percent, 10.0)
-        self.assertEqual(limits.secondary.window_minutes, 10080)
+        self.assertEqual(limits.secondary.used_percent, 12.0)
+        self.assertEqual(limits.secondary.window_minutes, 300)
+        self.assertEqual(limits.secondary.bucket_id, "3p-5h")
+        self.assertIsNotNone(limits.claude_gpt_weekly)
+        self.assertEqual(limits.claude_gpt_weekly.used_percent, 5.0)
+        self.assertEqual(limits.claude_gpt_weekly.window_minutes, 10080)
+        self.assertEqual(limits.claude_gpt_weekly.bucket_id, "3p-weekly")
         self.assertEqual(len(limits.groups), 2)
+        gemini_group = next(g for g in limits.groups if g.group_id == "gemini")
+        self.assertIsNone(gemini_group.weekly)
 
     def test_parses_language_server_user_status(self) -> None:
         payload = {

@@ -50,12 +50,20 @@ def limits_dict(limits: RateLimits | None) -> dict[str, Any] | None:
     """Serialize the cache and desktop contract in the same timestamp format."""
     if limits is None:
         return None
+    gemini_group = next((g for g in limits.groups if g.group_id == "gemini"), None)
+    claude_group = next((g for g in limits.groups if g.group_id == "claude_gpt"), None)
+    gemini_5h = (gemini_group.five_hour if gemini_group else None) or limits.primary
+    claude_5h = (claude_group.five_hour if claude_group else None) or limits.secondary
+    claude_weekly = (claude_group.weekly if claude_group else None) or limits.claude_gpt_weekly
     return {
         "plan_type": limits.plan_type,
         "account_email": limits.account_email,
         "active_model": limits.active_model,
         "primary": _window_dict(limits.primary),
         "secondary": _window_dict(limits.secondary),
+        "gemini_5h": _window_dict(gemini_5h),
+        "claude_gpt_5h": _window_dict(claude_5h),
+        "claude_gpt_weekly": _window_dict(claude_weekly),
         "groups": [_group_dict(g) for g in limits.groups],
         "observed_at": limits.observed_at.isoformat(),
     }
@@ -104,6 +112,11 @@ def load_network_limits(path: Path) -> RateLimits | None:
             return None
         value = record["rate_limits"]
         groups_raw = value.get("groups") or []
+        parsed_groups = [_group(item) for item in groups_raw if isinstance(item, dict)]
+        claude_group = next((g for g in parsed_groups if g.group_id == "claude_gpt"), None)
+        claude_weekly = _window(value.get("claude_gpt_weekly")) or (
+            claude_group.weekly if claude_group else None
+        )
         limits = RateLimits(
             plan_type=value["plan_type"],
             primary=_window(value.get("primary")),
@@ -111,7 +124,8 @@ def load_network_limits(path: Path) -> RateLimits | None:
             observed_at=_timestamp(value["observed_at"]),
             account_email=str(value.get("account_email") or ""),
             active_model=str(value.get("active_model") or ""),
-            groups=[_group(item) for item in groups_raw if isinstance(item, dict)],
+            claude_gpt_weekly=claude_weekly,
+            groups=parsed_groups,
         )
         if not isinstance(limits.plan_type, str) or (limits.primary is None and limits.secondary is None):
             return None

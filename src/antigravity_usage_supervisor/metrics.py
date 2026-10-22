@@ -84,6 +84,7 @@ class RateLimits:
     observed_at: datetime
     account_email: str = ""
     active_model: str = ""
+    claude_gpt_weekly: RateWindow | None = None
     groups: list[ModelGroupQuota] = field(default_factory=list)
 
 

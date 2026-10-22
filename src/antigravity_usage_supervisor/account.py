@@ -312,11 +312,12 @@ def parse_cloudcode_quota(
         plan_type = str(current_tier["name"])
 
     gemini_5h: RateWindow | None = None
-    gemini_weekly: RateWindow | None = None
     claude_5h: RateWindow | None = None
     claude_weekly: RateWindow | None = None
 
-    # 1. Parse group-level summary (5h and weekly windows)
+    # 1. Parse group-level summary
+    # Note: Antigravity enforces a 5-hour limit for Gemini, and both 5-hour and 7-day
+    # limits for Claude & GPT. Gemini does not have a 7-day limit.
     if isinstance(summary_response, dict):
         for group in summary_response.get("groups") or []:
             if not isinstance(group, dict):
@@ -335,15 +336,25 @@ def parse_cloudcode_quota(
                 win_mins = 10080 if is_weekly else 300
                 reset_dt = _timestamp(bucket.get("resetTime"))
                 if is_gemini_group or bid.startswith("gemini"):
-                    label = "7-day allowance (Gemini)" if is_weekly else "5-hour allowance (Gemini)"
-                    candidate = RateWindow(used, win_mins, reset_dt, label=label, bucket_id=bid or "gemini")
                     if is_weekly:
-                        gemini_weekly = _merge_windows(gemini_weekly, candidate)
-                    else:
-                        gemini_5h = _merge_windows(gemini_5h, candidate)
+                        continue
+                    candidate = RateWindow(
+                        used,
+                        300,
+                        reset_dt,
+                        label="5-hour allowance (Gemini)",
+                        bucket_id="gemini-5h",
+                    )
+                    gemini_5h = _merge_windows(gemini_5h, candidate)
                 else:
                     label = "7-day allowance (Claude & GPT)" if is_weekly else "5-hour allowance (Claude & GPT)"
-                    candidate = RateWindow(used, win_mins, reset_dt, label=label, bucket_id=bid or "3p")
+                    candidate = RateWindow(
+                        used,
+                        win_mins,
+                        reset_dt,
+                        label=label,
+                        bucket_id=bid or ("3p-weekly" if is_weekly else "3p-5h"),
+                    )
                     if is_weekly:
                         claude_weekly = _merge_windows(claude_weekly, candidate)
                     else:
@@ -361,33 +372,21 @@ def parse_cloudcode_quota(
             if used is None:
                 continue
             reset_dt = _timestamp(bucket.get("resetTime"))
-            # If reset_dt is more than 6 hours in the future, the bucket is governed by the 7-day weekly limit
+            # If reset_dt is more than 6 hours in the future, a 3P bucket is governed by the 7-day weekly limit
             is_weekly_bucket = bool(
                 reset_dt is not None and (reset_dt - observed_at) > timedelta(hours=6)
             )
             if "gemini" in model_id:
-                if is_weekly_bucket:
-                    gemini_weekly = _merge_windows(
-                        gemini_weekly,
-                        RateWindow(
-                            used_percent=used,
-                            window_minutes=10080,
-                            resets_at=reset_dt,
-                            label="7-day allowance (Gemini)",
-                            bucket_id="gemini-weekly",
-                        ),
-                    )
-                else:
-                    gemini_5h = _merge_windows(
-                        gemini_5h,
-                        RateWindow(
-                            used_percent=used,
-                            window_minutes=300,
-                            resets_at=reset_dt,
-                            label="5-hour allowance (Gemini)",
-                            bucket_id="gemini-5h",
-                        ),
-                    )
+                gemini_5h = _merge_windows(
+                    gemini_5h,
+                    RateWindow(
+                        used_percent=used,
+                        window_minutes=300,
+                        resets_at=reset_dt,
+                        label="5-hour allowance (Gemini)",
+                        bucket_id="gemini-5h",
+                    ),
+                )
             elif any(k in model_id for k in ("claude", "gpt")):
                 if is_weekly_bucket:
                     claude_weekly = _merge_windows(
@@ -412,17 +411,17 @@ def parse_cloudcode_quota(
                         ),
                     )
 
-    if gemini_5h is None and claude_5h is None and gemini_weekly is None and claude_weekly is None:
+    if gemini_5h is None and claude_5h is None and claude_weekly is None:
         raise AccountLimitsError("Cloud Code API returned no model quota buckets")
 
     groups: list[ModelGroupQuota] = []
-    if gemini_5h or gemini_weekly:
+    if gemini_5h:
         groups.append(
             ModelGroupQuota(
                 group_id="gemini",
                 display_name="Gemini Models",
                 five_hour=gemini_5h,
-                weekly=gemini_weekly,
+                weekly=None,
             )
         )
     if claude_5h or claude_weekly:
@@ -435,16 +434,10 @@ def parse_cloudcode_quota(
             )
         )
 
-    active_lower = active_model.lower()
-    active_is_3p = any(k in active_lower for k in ("claude", "sonnet", "opus", "gpt"))
-
-    # Always pair primary = 5-hour allowance (300m) and secondary = 7-day allowance (10080m)
-    if active_is_3p and (claude_5h is not None or claude_weekly is not None):
-        primary = claude_5h or gemini_5h
-        secondary = claude_weekly or gemini_weekly
-    else:
-        primary = gemini_5h or claude_5h
-        secondary = gemini_weekly or claude_weekly
+    # Core visualization always reports the 5-hour limit for Gemini (primary).
+    # Detail views report all three limits: Gemini 5h, Claude & GPT 5h, and Claude & GPT 7d.
+    primary = gemini_5h or claude_5h
+    secondary = claude_5h if gemini_5h is not None else None
 
     return RateLimits(
         plan_type=plan_type,
@@ -453,6 +446,7 @@ def parse_cloudcode_quota(
         observed_at=observed_at,
         account_email=account_email,
         active_model=active_model or "Gemini 4 Argon (Medium)",
+        claude_gpt_weekly=claude_weekly,
         groups=groups,
     )
 
@@ -586,12 +580,12 @@ def parse_user_status_response(
         if "gemini" in lower_label:
             gemini_5h = _merge_windows(
                 gemini_5h,
-                RateWindow(used, 300, reset_dt, label="Gemini 5-hour allowance", bucket_id="gemini-5h"),
+                RateWindow(used, 300, reset_dt, label="5-hour allowance (Gemini)", bucket_id="gemini-5h"),
             )
         elif any(k in lower_label for k in ("claude", "sonnet", "opus", "gpt")):
             claude_5h = _merge_windows(
                 claude_5h,
-                RateWindow(used, 300, reset_dt, label="Claude & GPT 5-hour allowance", bucket_id="3p-5h"),
+                RateWindow(used, 300, reset_dt, label="5-hour allowance (Claude & GPT)", bucket_id="3p-5h"),
             )
 
     if gemini_5h is None and claude_5h is None:
