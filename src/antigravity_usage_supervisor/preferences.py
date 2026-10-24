@@ -27,9 +27,7 @@ def _format_percent(value: Any) -> str:
         return "0%"
     if not math.isfinite(num):
         return "0%"
-    if 0 < num < 10 and round(num * 10) % 10 != 0:
-        return f"{num:.1f}%"
-    return f"{round(num)}%"
+    return f"{num:.2f}".rstrip("0").rstrip(".") + "%"
 
 
 def _reset_text(value: Any) -> str:
@@ -48,27 +46,30 @@ def _reset_text(value: Any) -> str:
 class _QuotaLimitRow:
     def __init__(self, default_title: str) -> None:
         self.default_title = default_title
-        self.row = Adw.ActionRow(title=default_title, subtitle="Waiting for usage data")
+        self.row = Adw.ActionRow(title=GLib.markup_escape_text(default_title), subtitle="Waiting for usage data")
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, valign=Gtk.Align.CENTER)
         self.value_label = Gtk.Label(label="—", xalign=1.0)
         self.value_label.add_css_class("heading")
         self.progress = Gtk.ProgressBar(valign=Gtk.Align.CENTER)
-        self.progress.set_size_request(140, -1)
+        self.progress.set_size_request(160, -1)
         box.append(self.value_label)
         box.append(self.progress)
         self.row.add_suffix(box)
 
-    def update(self, window: dict[str, Any] | None) -> None:
+    def update(self, window: dict[str, Any] | None, is_active: bool = False) -> None:
         if not isinstance(window, dict):
-            self.row.set_title(self.default_title)
+            self.row.set_title(GLib.markup_escape_text(self.default_title))
             self.row.set_subtitle("Not reported")
             self.value_label.set_label("Not reported")
             self.progress.set_fraction(0.0)
             return
         used = float(window.get("used_percent") or 0.0)
-        self.row.set_title(str(window.get("label") or self.default_title))
-        self.row.set_subtitle(_reset_text(window.get("resets_at")))
-        self.value_label.set_label(f"{_format_percent(used)} used")
+        rem_raw = window.get("remaining_percent")
+        remaining = float(rem_raw) if rem_raw is not None else max(0.0, 100.0 - used)
+        self.row.set_title(GLib.markup_escape_text(str(window.get("label") or self.default_title)))
+        reset_str = _reset_text(window.get("resets_at"))
+        self.row.set_subtitle(f"Indicator quota  ·  {reset_str}" if is_active else reset_str)
+        self.value_label.set_label(f"{_format_percent(used)} used ({_format_percent(remaining)} left)")
         self.progress.set_fraction(min(1.0, max(0.0, used / 100.0)))
 
 
@@ -77,9 +78,14 @@ class PreferencesApplication(Adw.Application):
         super().__init__(application_id="io.github.owen.AntigravityUsageSupervisor.Preferences")
         self.settings = Settings.load()
         self._quota_group: Adw.PreferencesGroup | None = None
+        self._gemini_argon_7d_row: _QuotaLimitRow | None = None
         self._gemini_5h_row: _QuotaLimitRow | None = None
+        self._gemini_7d_row: _QuotaLimitRow | None = None
         self._claude_5h_row: _QuotaLimitRow | None = None
         self._claude_7d_row: _QuotaLimitRow | None = None
+        self._activity_rows: dict[str, Adw.ActionRow] = {}
+        self._recent_group: Adw.PreferencesGroup | None = None
+        self._recent_rows: list[Adw.ActionRow] = []
         self._bus: Gio.DBusConnection | None = None
         self._signal_id: int = 0
 
@@ -91,14 +97,14 @@ class PreferencesApplication(Adw.Application):
 
         window = Adw.PreferencesWindow(application=self)
         window.set_title("Antigravity Usage Supervisor")
-        window.set_default_size(600, 680)
+        window.set_default_size(620, 740)
 
-        page = Adw.PreferencesPage(title="Usage")
+        page = Adw.PreferencesPage(title="Details", icon_name="view-list-symbolic")
         window.add(page)
 
         self._quota_group = Adw.PreferencesGroup(
             title="Google AI Pro quota allowances",
-            description="Gemini has a 5-hour rolling limit; Claude & GPT have both 5-hour and 7-day limits.",
+            description="Gemini 4 Argon has a dedicated 7-day limit; Gemini Models and Claude &amp; GPT each have 5-hour and 7-day limits.",
         )
         refresh_btn = Gtk.Button(
             icon_name="view-refresh-symbolic",
@@ -109,13 +115,35 @@ class PreferencesApplication(Adw.Application):
         refresh_btn.connect("clicked", self._on_refresh_clicked)
         self._quota_group.set_header_suffix(refresh_btn)
 
+        self._gemini_argon_7d_row = _QuotaLimitRow("7-day allowance (Gemini 4 Argon)")
         self._gemini_5h_row = _QuotaLimitRow("5-hour allowance (Gemini)")
+        self._gemini_7d_row = _QuotaLimitRow("7-day allowance (Gemini)")
         self._claude_5h_row = _QuotaLimitRow("5-hour allowance (Claude & GPT)")
         self._claude_7d_row = _QuotaLimitRow("7-day allowance (Claude & GPT)")
+        self._quota_group.add(self._gemini_argon_7d_row.row)
         self._quota_group.add(self._gemini_5h_row.row)
+        self._quota_group.add(self._gemini_7d_row.row)
         self._quota_group.add(self._claude_5h_row.row)
         self._quota_group.add(self._claude_7d_row.row)
         page.add(self._quota_group)
+
+        activity = Adw.PreferencesGroup(title="Local activity")
+        page.add(activity)
+        for key, title in (
+            ("sessions", "Today's tasks"),
+            ("focus_minutes", "Today's estimated focus time"),
+            ("tokens", "Today's tokens"),
+            ("week_tokens", "Tokens over the last 7 days"),
+            ("source", "Quota data source"),
+        ):
+            row = Adw.ActionRow(title=title, subtitle="Waiting for data")
+            activity.add(row)
+            self._activity_rows[key] = row
+        self._recent_group = Adw.PreferencesGroup(title="Recent tasks")
+        page.add(self._recent_group)
+
+        page = Adw.PreferencesPage(title="Settings", icon_name="emblem-system-symbolic")
+        window.add(page)
 
         goals = Adw.PreferencesGroup(
             title="Personal goals",
@@ -180,7 +208,7 @@ class PreferencesApplication(Adw.Application):
         about = Adw.PreferencesGroup(title="About")
         page.add(about)
         privacy = Adw.ActionRow(
-            title="Privacy-first local & Google AI Pro quota monitoring",
+            title="Privacy-first local &amp; Google AI Pro quota monitoring",
             subtitle="Reads local ~/.gemini/antigravity-cli transcripts and Cloud Code Assist quota buckets",
         )
         privacy.add_prefix(Gtk.Image.new_from_icon_name("security-high-symbolic"))
@@ -258,15 +286,29 @@ class PreferencesApplication(Adw.Application):
     def _apply_summary(self, summary: dict[str, Any]) -> None:
         limits = summary.get("rate_limits") or {}
         groups = limits.get("groups") or []
+        argon_group = next((g for g in groups if isinstance(g, dict) and g.get("group_id") == "gemini_argon"), {})
         gemini_group = next((g for g in groups if isinstance(g, dict) and g.get("group_id") == "gemini"), {})
         claude_group = next((g for g in groups if isinstance(g, dict) and g.get("group_id") == "claude_gpt"), {})
 
-        gemini_5h = limits.get("gemini_5h") or gemini_group.get("five_hour") or limits.get("primary")
-        claude_5h = limits.get("claude_gpt_5h") or claude_group.get("five_hour") or limits.get("secondary")
+        primary = limits.get("primary") or {}
+        primary_bucket = str(primary.get("bucket_id") or "")
+
+        argon_7d = limits.get("gemini_argon_weekly") or argon_group.get("weekly")
+        gemini_5h = limits.get("gemini_5h") or gemini_group.get("five_hour")
+        if gemini_5h is None and primary_bucket in ("", "gemini-5h") and argon_7d is None:
+            gemini_5h = limits.get("primary")
+        gemini_7d = limits.get("gemini_weekly") or gemini_group.get("weekly")
+        claude_5h = limits.get("claude_gpt_5h") or claude_group.get("five_hour")
+        if claude_5h is None and (limits.get("secondary") or {}).get("bucket_id") in ("", "3p-5h"):
+            claude_5h = limits.get("secondary")
         claude_7d = limits.get("claude_gpt_weekly") or claude_group.get("weekly")
 
+        if self._gemini_argon_7d_row:
+            self._gemini_argon_7d_row.update(argon_7d, is_active=True)
         if self._gemini_5h_row:
             self._gemini_5h_row.update(gemini_5h)
+        if self._gemini_7d_row:
+            self._gemini_7d_row.update(gemini_7d)
         if self._claude_5h_row:
             self._claude_5h_row.update(claude_5h)
         if self._claude_7d_row:
@@ -278,6 +320,39 @@ class PreferencesApplication(Adw.Application):
             parts = [p for p in (active_model, email) if p]
             if parts:
                 self._quota_group.set_description("  ·  ".join(parts))
+
+        today = summary.get("today") or {}
+        values = {
+            "sessions": str(today.get("sessions", 0)),
+            "focus_minutes": f"{today.get('focus_minutes', 0)} min",
+            "tokens": f"{int(today.get('tokens', 0)):,}",
+            "week_tokens": f"{int((summary.get('week') or {}).get('tokens', 0)):,}",
+            "source": str(summary.get("rate_limits_source") or "Unavailable"),
+        }
+        if summary.get("rate_limits_refresh_error"):
+            values["source"] += " (refresh failed; showing available data)"
+        for key, value in values.items():
+            if key in self._activity_rows:
+                self._activity_rows[key].set_subtitle(GLib.markup_escape_text(value))
+        if self._recent_group:
+            for row in self._recent_rows:
+                self._recent_group.remove(row)
+            self._recent_rows.clear()
+            for item in (summary.get("recent") or [])[:5]:
+                subtitle = " · ".join(str(v) for v in (
+                    item.get("project"), item.get("model"),
+                    f"{int(item.get('tokens', 0)):,} tokens", item.get("status"),
+                ) if v)
+                row = Adw.ActionRow(
+                    title=GLib.markup_escape_text(str(item.get("name") or "Untitled task")),
+                    subtitle=GLib.markup_escape_text(subtitle),
+                )
+                self._recent_group.add(row)
+                self._recent_rows.append(row)
+            if not self._recent_rows:
+                row = Adw.ActionRow(title="No recent tasks")
+                self._recent_group.add(row)
+                self._recent_rows.append(row)
 
     def _spin_row(
         self,

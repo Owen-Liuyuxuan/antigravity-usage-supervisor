@@ -40,9 +40,7 @@ function formatPercent(value) {
     const num = Number(value || 0);
     if (!Number.isFinite(num))
         return '0%';
-    if (num > 0 && num < 10 && Math.round(num * 10) % 10 !== 0)
-        return `${num.toFixed(1)}%`;
-    return `${Math.round(num)}%`;
+    return `${Number(num.toFixed(2))}%`;
 }
 
 function windowName(windowObj) {
@@ -110,7 +108,7 @@ class AntigravityIndicator extends PanelMenu.Button {
             style_class: 'system-status-icon agy-panel-icon',
         });
         this._panelLabel = new St.Label({
-            text: 'AGY —',
+            text: 'G4 —',
             y_align: Clutter.ActorAlign.CENTER,
         });
         panelBox.add_child(this._panelIcon);
@@ -149,28 +147,6 @@ class AntigravityIndicator extends PanelMenu.Button {
         this._modelMeta = new St.Label({ text: '', style_class: 'agy-model-meta' });
         body.add_child(this._modelMeta);
 
-        const claude5hHeader = new St.BoxLayout({ style_class: 'agy-secondary-header' });
-        this._claude5hName = new St.Label({ text: '5-hour allowance (Claude & GPT)', x_expand: true });
-        this._claude5hValue = new St.Label({ text: '—', style_class: 'agy-secondary-value' });
-        claude5hHeader.add_child(this._claude5hName);
-        claude5hHeader.add_child(this._claude5hValue);
-        body.add_child(claude5hHeader);
-        this._claude5hBar = new ProgressLine('agy-progress-secondary');
-        body.add_child(this._claude5hBar.actor);
-        this._claude5hReset = new St.Label({ text: '', style_class: 'agy-reset' });
-        body.add_child(this._claude5hReset);
-
-        const claude7dHeader = new St.BoxLayout({ style_class: 'agy-secondary-header' });
-        this._claude7dName = new St.Label({ text: '7-day allowance (Claude & GPT)', x_expand: true });
-        this._claude7dValue = new St.Label({ text: '—', style_class: 'agy-secondary-value' });
-        claude7dHeader.add_child(this._claude7dName);
-        claude7dHeader.add_child(this._claude7dValue);
-        body.add_child(claude7dHeader);
-        this._claude7dBar = new ProgressLine('agy-progress-tertiary');
-        body.add_child(this._claude7dBar.actor);
-        this._claude7dReset = new St.Label({ text: '', style_class: 'agy-reset' });
-        body.add_child(this._claude7dReset);
-
         body.add_child(new St.Widget({ style_class: 'agy-divider' }));
         body.add_child(new St.Label({ text: 'TODAY', style_class: 'agy-section-label' }));
         const stats = new St.BoxLayout({ style_class: 'agy-stats' });
@@ -197,7 +173,7 @@ class AntigravityIndicator extends PanelMenu.Button {
         const refresh = new PopupMenu.PopupMenuItem('Refresh now');
         refresh.connect('activate', () => this._requestRefresh());
         this.menu.addMenuItem(refresh);
-        const preferences = new PopupMenu.PopupMenuItem('Preferences');
+        const preferences = new PopupMenu.PopupMenuItem('Details & Preferences');
         preferences.connect('activate', () => this._openPreferences());
         this.menu.addMenuItem(preferences);
     }
@@ -245,54 +221,36 @@ class AntigravityIndicator extends PanelMenu.Button {
             : `ANTIGRAVITY · ${planName}`;
 
         const groups = limits.groups || [];
-        const geminiGroup = groups.find(g => g.group_id === 'gemini');
-        const claudeGroup = groups.find(g => g.group_id === 'claude_gpt');
-        const gemini5h = limits.gemini_5h || (geminiGroup && geminiGroup.five_hour) || limits.primary;
-        const claude5h = limits.claude_gpt_5h || (claudeGroup && claudeGroup.five_hour) || limits.secondary;
-        const claude7d = limits.claude_gpt_weekly || (claudeGroup && claudeGroup.weekly);
+        const argonGroup = groups.find(g => g.group_id === 'gemini_argon');
+        // Keep the panel pinned to Argon even when another model is active.
+        const heroWindow = limits.gemini_argon_weekly || (argonGroup && argonGroup.weekly)
+            || (limits.primary && limits.primary.bucket_id === 'gemini-argon-wtu-weekly'
+                ? limits.primary : null);
 
-        if (gemini5h) {
-            const pctGemini5h = formatPercent(gemini5h.used_percent);
-            this._panelLabel.text = `AGY ${pctGemini5h}`;
-            this._primaryValue.text = `${pctGemini5h} used`;
-            this._primaryCaption.text = `${windowName(gemini5h)}  ·  ${resetText(gemini5h.resets_at)}`;
-            this._primaryBar.setFraction(Number(gemini5h.used_percent || 0) / 100);
-            this._setUrgency(Number(gemini5h.used_percent || 0));
+        if (heroWindow) {
+            const usedNum = Number(heroWindow.used_percent || 0);
+            const remNum = heroWindow.remaining_percent !== undefined
+                ? Number(heroWindow.remaining_percent)
+                : Math.max(0, 100 - usedNum);
+            const pctUsed = formatPercent(usedNum);
+            const pctLeft = formatPercent(remNum);
+            this._panelLabel.text = `G4 ${pctLeft} left`;
+            this._primaryValue.text = `${pctLeft} left`;
+            this._primaryCaption.text = `${windowName(heroWindow)}  ·  ${pctUsed} used  ·  ${resetText(heroWindow.resets_at)}`;
+            this._primaryBar.setFraction(remNum / 100);
+            this._setUrgency(usedNum);
         } else {
-            this._panelLabel.text = 'AGY —';
-            this._primaryValue.text = 'No allowance data';
+            this._panelLabel.text = 'G4 —';
+            this._primaryValue.text = 'Argon quota unavailable';
             this._primaryCaption.text = 'Check Antigravity sign-in or refresh';
             this._primaryBar.setFraction(0);
+            this._setUrgency(0);
         }
 
         const activeModel = summary.active_model || limits.active_model || '';
         const email = summary.account_email || limits.account_email || '';
         const metaParts = [activeModel, email].filter(Boolean);
         this._modelMeta.text = metaParts.join('  ·  ');
-
-        if (claude5h) {
-            this._claude5hName.text = windowName(claude5h);
-            this._claude5hValue.text = `${formatPercent(claude5h.used_percent)} used`;
-            this._claude5hReset.text = resetText(claude5h.resets_at);
-            this._claude5hBar.setFraction(Number(claude5h.used_percent || 0) / 100);
-        } else {
-            this._claude5hName.text = '5-hour allowance (Claude & GPT)';
-            this._claude5hValue.text = 'Not reported';
-            this._claude5hReset.text = '';
-            this._claude5hBar.setFraction(0);
-        }
-
-        if (claude7d) {
-            this._claude7dName.text = windowName(claude7d);
-            this._claude7dValue.text = `${formatPercent(claude7d.used_percent)} used`;
-            this._claude7dReset.text = resetText(claude7d.resets_at);
-            this._claude7dBar.setFraction(Number(claude7d.used_percent || 0) / 100);
-        } else {
-            this._claude7dName.text = '7-day allowance (Claude & GPT)';
-            this._claude7dValue.text = 'Not reported';
-            this._claude7dReset.text = '';
-            this._claude7dBar.setFraction(0);
-        }
 
         const today = summary.today || {};
         this._tasksValue.text = `${today.sessions || 0}`;
@@ -384,7 +342,7 @@ class AntigravityIndicator extends PanelMenu.Button {
     }
 
     _showError(message) {
-        this._panelLabel.text = 'AGY !';
+        this._panelLabel.text = 'G4 !';
         this._liveLabel.text = '● OFFLINE';
         this._liveLabel.add_style_class_name('agy-error');
         this._primaryValue.text = 'Unavailable';

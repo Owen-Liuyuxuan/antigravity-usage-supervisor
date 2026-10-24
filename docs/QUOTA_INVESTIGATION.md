@@ -6,16 +6,22 @@ Antigravity (`agy` CLI and Antigravity IDE) authenticates individual Google AI P
 users via consumer OAuth (`auth_method: "consumer"`) and maps the account to tier
 `g1-pro-tier` (`Google AI Pro`) under companion project `aicode-consumers`.
 
-Unlike Codex (which uses a single global 5-hour and 7-day bucket), Antigravity
-partitions model usage into **three quota buckets** across two model families:
+Live verification on 2026-10-24 found **three model groups and five windows**
+for this Google AI Pro account:
 
-1. **Gemini Models (`gemini-5h` — 5-hour rolling window, `300` minutes):**
-   - Shared across Gemini 4 Argon (Low/Medium/High), Gemini 3.8/3.6/3.5/3.1 Flash,
-     and Gemini 3.1/2.5 Pro.
-   - Gemini models only enforce a **5-hour rolling limit** (no 7-day weekly limit).
-2. **Claude and GPT Models (`3p-5h` — 5-hour rolling window, `300` minutes, and `3p-weekly` — 7-day weekly window, `10,080` minutes):**
-   - Shared across Claude Opus 5.5, Claude Sonnet 5.5, and GPT-OSS 120B.
-   - Enforces both a **5-hour rolling limit** and a **7-day weekly limit**.
+1. **Gemini Models:** `gemini-weekly` and `gemini-5h`, shared by Flash and Pro.
+2. **Claude and GPT models:** `3p-weekly` and `3p-5h`.
+3. **Gemini 4 Argon:** separate `gemini-argon-wtu-weekly` on paid Pro.
+   The server describes Ultra as including higher Argon quota in the larger
+   Gemini quota bucket; do not assume this account's layout applies to all tiers.
+
+The verified snapshot reported **0.81% remaining for Argon** and **98.75%
+remaining for Gemini Models weekly**. These are distinct allowances. The panel
+is pinned to Argon; all five windows appear in Details.
+
+`retrieveUserQuotaSummary` supplies explicit group/window identifiers and takes
+precedence. Per-model data is a fallback for absent families. A weekly limit
+cannot be inferred from how many hours remain before its reset.
 
 Each bucket reports:
 - `remainingFraction` (`float` in `[0.0, 1.0]`, where `used_percent = (1.0 - remainingFraction) * 100`)
@@ -37,7 +43,7 @@ During investigation on this system, three candidate mechanisms were analyzed an
   2. `POST https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`
      - Returns high-precision per-model `remainingFraction` (e.g. `0.977231` -> `2.3% used`) and `resetTime` reflecting real-time `agy` CLI usage.
   3. `POST https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary` (and `cloudcode-pa`)
-     - Returns explicit `3p-5h` and `3p-weekly` buckets for `Claude and GPT models` (while Gemini's 5-hour rolling window is reported in `retrieveUserQuota`).
+     - Returns all five explicit buckets across Gemini Models, Claude and GPT models, and Gemini 4 Argon.
 - **Why It Is Most Reliable:**
   - Works whether the Antigravity IDE or `agy` CLI is currently running or closed.
   - When `agy` is closed and `access_token` expires after 1 hour, `account.py` refreshes the token in-memory using `refresh_token` against `https://oauth2.googleapis.com/token`.

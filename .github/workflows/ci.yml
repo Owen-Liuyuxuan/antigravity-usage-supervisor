@@ -15,12 +15,13 @@ jobs:
       - name: Install desktop dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 shellcheck desktop-file-utils
+          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 shellcheck desktop-file-utils xvfb
       - name: Test Python
-        run: PYTHONPATH=src python3 -m unittest discover -s tests -v
+        run: xvfb-run -a env PYTHONPATH=src /usr/bin/python3 -m unittest discover -s tests -v
       - name: Validate extension and packaging
         run: |
           node --check extension/extension.js
+          node tests/test_indicator.js
           python3 -m json.tool extension/metadata.json >/dev/null
           desktop-file-validate packaging/antigravity-usage-supervisor.desktop
           shellcheck packaging/build_deb.sh packaging/install_user.sh

@@ -2,11 +2,11 @@
 
 ## Where the visualization lives
 
-The application launcher (**Antigravity Usage Supervisor**) opens the Libadwaita
-detail & preferences window showing all three quota limits (**Gemini 5h**,
-**Claude & GPT 5h**, and **Claude & GPT 7d**) and configuration settings. The
-core top-panel visualization is the `AGY <percent>%` indicator in the upper-right
-GNOME panel, which reports the **Gemini 5-hour allowance**.
+The top-panel indicator displays **Gemini 4 Argon weekly quota remaining**, for
+example `G4 0.81% left`. It stays focused on Argon when other models are selected.
+The launcher opens a **Details** tab containing all five quota windows, plus a
+separate **Settings** tab. Percentages retain two decimal places where needed.
+Missing Argon quota displays `G4 —` rather than substituting another quota.
 
 After installing the package or running `./packaging/install_user.sh`, enable
 the extension:
@@ -26,14 +26,17 @@ systemctl --user daemon-reload
 systemctl --user restart antigravity-usage-supervisor.service
 ```
 
-Click the `AGY` panel indicator (which reports the core Gemini 5-hour limit) to see:
+Click the `G4` panel indicator to see:
 
-- **5-hour allowance (Gemini)** hero usage bar and reset countdown;
-- active model name (e.g. `Gemini 4 Argon (Medium)`) and signed-in Google AI Pro account;
-- **5-hour allowance (Claude & GPT)** usage bar and reset countdown;
-- **7-day allowance (Claude & GPT)** usage bar and reset countdown;
-- today's tasks, estimated focus time, and local token count (including subagents);
-- the three most recently active Antigravity conversations (`active` indicator when running).
+- **Gemini 4 Argon weekly** remaining quota, used percentage, and reset countdown;
+- active model and signed-in account;
+- today's tasks, estimated focus time, local tokens, and recent conversations;
+- **Details & Preferences**, opening all five quota windows and settings.
+
+The Details tab shows Argon weekly, Gemini Models weekly/five-hour, and
+Claude & GPT weekly/five-hour. Each window has its own reset countdown. Below the quota rows, scroll to see
+today's task count, estimated focus time, today's tokens, tokens over the last
+seven days, quota data source, and recent tasks.
 
 ## Diagnostics
 
