@@ -202,10 +202,18 @@ class UsageService:
         limits = summary.get("rate_limits") or {}
         primary = limits.get("primary") or {}
         secondary = limits.get("secondary") or {}
+        argon_weekly = limits.get("gemini_argon_weekly") or {}
+        gemini_5h = limits.get("gemini_5h") or {}
+        gemini_weekly = limits.get("gemini_weekly") or {}
+        claude_5h = limits.get("claude_gpt_5h") or {}
         claude_weekly = limits.get("claude_gpt_weekly") or {}
         return max(
             float(primary.get("used_percent", 0) or 0),
             float(secondary.get("used_percent", 0) or 0),
+            float(argon_weekly.get("used_percent", 0) or 0),
+            float(gemini_5h.get("used_percent", 0) or 0),
+            float(gemini_weekly.get("used_percent", 0) or 0),
+            float(claude_5h.get("used_percent", 0) or 0),
             float(claude_weekly.get("used_percent", 0) or 0),
             100 * float(today.get("tokens", 0) or 0) / self.settings.daily_token_budget,
             100 * float(today.get("focus_minutes", 0) or 0) / self.settings.daily_focus_minutes,

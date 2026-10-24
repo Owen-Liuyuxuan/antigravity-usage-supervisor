@@ -30,6 +30,7 @@ def _window_dict(window: RateWindow | None) -> dict[str, Any] | None:
         return None
     return {
         "used_percent": window.used_percent,
+        "remaining_percent": round(max(0.0, 100.0 - window.used_percent), 2),
         "window_minutes": window.window_minutes,
         "resets_at": window.resets_at.isoformat() if window.resets_at else None,
         "label": window.label,
@@ -50,10 +51,18 @@ def limits_dict(limits: RateLimits | None) -> dict[str, Any] | None:
     """Serialize the cache and desktop contract in the same timestamp format."""
     if limits is None:
         return None
+    argon_group = next((g for g in limits.groups if g.group_id == "gemini_argon"), None)
     gemini_group = next((g for g in limits.groups if g.group_id == "gemini"), None)
     claude_group = next((g for g in limits.groups if g.group_id == "claude_gpt"), None)
-    gemini_5h = (gemini_group.five_hour if gemini_group else None) or limits.primary
-    claude_5h = (claude_group.five_hour if claude_group else None) or limits.secondary
+
+    gemini_argon_weekly = limits.gemini_argon_weekly or (argon_group.weekly if argon_group else None)
+    gemini_5h = (gemini_group.five_hour if gemini_group else None) or next(
+        (w for w in (limits.primary, limits.secondary) if w and w.bucket_id == "gemini-5h"), None
+    )
+    gemini_weekly = limits.gemini_weekly or (gemini_group.weekly if gemini_group else None)
+    claude_5h = (claude_group.five_hour if claude_group else None) or next(
+        (w for w in (limits.primary, limits.secondary) if w and w.bucket_id == "3p-5h"), None
+    )
     claude_weekly = (claude_group.weekly if claude_group else None) or limits.claude_gpt_weekly
     return {
         "plan_type": limits.plan_type,
@@ -61,7 +70,9 @@ def limits_dict(limits: RateLimits | None) -> dict[str, Any] | None:
         "active_model": limits.active_model,
         "primary": _window_dict(limits.primary),
         "secondary": _window_dict(limits.secondary),
+        "gemini_argon_weekly": _window_dict(gemini_argon_weekly),
         "gemini_5h": _window_dict(gemini_5h),
+        "gemini_weekly": _window_dict(gemini_weekly),
         "claude_gpt_5h": _window_dict(claude_5h),
         "claude_gpt_weekly": _window_dict(claude_weekly),
         "groups": [_group_dict(g) for g in limits.groups],
@@ -113,7 +124,15 @@ def load_network_limits(path: Path) -> RateLimits | None:
         value = record["rate_limits"]
         groups_raw = value.get("groups") or []
         parsed_groups = [_group(item) for item in groups_raw if isinstance(item, dict)]
+        argon_group = next((g for g in parsed_groups if g.group_id == "gemini_argon"), None)
+        gemini_group = next((g for g in parsed_groups if g.group_id == "gemini"), None)
         claude_group = next((g for g in parsed_groups if g.group_id == "claude_gpt"), None)
+        gemini_argon_weekly = _window(value.get("gemini_argon_weekly")) or (
+            argon_group.weekly if argon_group else None
+        )
+        gemini_weekly = _window(value.get("gemini_weekly")) or (
+            gemini_group.weekly if gemini_group else None
+        )
         claude_weekly = _window(value.get("claude_gpt_weekly")) or (
             claude_group.weekly if claude_group else None
         )
@@ -124,6 +143,8 @@ def load_network_limits(path: Path) -> RateLimits | None:
             observed_at=_timestamp(value["observed_at"]),
             account_email=str(value.get("account_email") or ""),
             active_model=str(value.get("active_model") or ""),
+            gemini_argon_weekly=gemini_argon_weekly,
+            gemini_weekly=gemini_weekly,
             claude_gpt_weekly=claude_weekly,
             groups=parsed_groups,
         )

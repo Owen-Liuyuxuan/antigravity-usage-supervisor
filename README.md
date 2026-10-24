@@ -2,29 +2,23 @@
 
 [![CI](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml/badge.svg)](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml)
 
-A privacy-focused GNOME Shell addon for Ubuntu 22.04+ that places current Google
-Antigravity / Google AI Pro allowance (**Gemini 5-hour**, **Claude & GPT 5-hour**,
-and **Claude & GPT 7-day** rolling windows) and local activity metrics in the top
-panel. Modeled after
-[`codex-usage-supervisor`](https://github.com/Owen-Liuyuxuan/codex-usage-supervisor),
-the interface uses open space, clean typography, slim progress lines, and
-frameless activity rows instead of boxed cards.
+A privacy-focused GNOME Shell addon for Ubuntu 22.04+ focused on **Gemini 4
+Argon weekly quota**. The top panel shows remaining allowance, for example
+`G4 0.81% left`, regardless of the currently selected model. The popover shows
+Argon's remaining bar, used percentage, reset countdown, and local activity.
 
 ## Features & Components
 
-- **GNOME Shell extension (`antigravity-usage-supervisor@owen.local`):**
-  - Compact top-panel core indicator displaying the **Gemini 5-hour allowance**: `AGY 2.7%`
-  - Clean dropdown popover showing all three quota limits with dedicated progress bars and exact reset countdowns:
-    1. **5-hour allowance (Gemini)** (hero bar)
-    2. **5-hour allowance (Claude & GPT)**
-    3. **7-day allowance (Claude & GPT)**
-    along with active model (`Gemini 4 Argon (Medium)`, etc.), signed-in account, today's tasks/focus/tokens, and recent conversations;
-- **D-Bus service (`io.github.owen.AntigravityUsageSupervisor`):**
-  - Queries live Google AI Pro quota buckets (`daily-cloudcode-pa.googleapis.com` / `cloudcode-pa.googleapis.com`) and parses local `~/.gemini/antigravity-cli` session telemetry away from the GNOME Shell UI process;
-- **Libadwaita preferences & detail view (`antigravity-usage-supervisor-preferences`):**
-  - Native GTK4/Libadwaita window displaying all three live quota bars (`Gemini 5h`, `Claude & GPT 5h`, `Claude & GPT 7d`) alongside personal daily token/focus-time goals and refresh interval;
-- **Debian package & user installer:**
-  - Installs and connects all components via `.deb` package or rootless user-space script.
+- **GNOME Shell extension:** Argon weekly allowance in the panel and popover,
+  with two decimal places and warning colors based on quota consumed. Missing
+  Argon data displays `G4 —`; another model's quota is never substituted.
+- **Details tab:** All five quota windows: Argon weekly, Gemini Models weekly
+  and five-hour, and Claude & GPT weekly and five-hour.
+- **Settings tab:** Personal token/focus goals, notification threshold, refresh
+  interval, and data source.
+- **D-Bus service:** Queries the authenticated Cloud Code Assist quota API and
+  reads local session metadata outside the GNOME Shell process.
+- **Debian package & user installer:** Package or rootless installation.
 
 See the [usage guide](docs/USAGE.md), [architecture](docs/ARCHITECTURE.md), and
 [Google AI Pro quota investigation](docs/QUOTA_INVESTIGATION.md) for details.
@@ -37,9 +31,10 @@ See the [usage guide](docs/USAGE.md), [architecture](docs/ARCHITECTURE.md), and
    - Reads the locally authenticated Antigravity OAuth credentials from GNOME Keyring (`org.freedesktop.secrets`, `service="gemini", username="antigravity"`) or `~/.config/antigravity/plugin-secrets.json`, automatically refreshing expired access tokens in-memory.
    - Queries `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` across both Cloud Code Assist endpoints to obtain:
      - **Plan tier:** `Google AI Pro` (`g1-pro-tier`)
-     - **Primary (Core) bar:** **5-hour allowance (Gemini)** (`300` min window) with sub-percent precision and reset countdown
-     - **Secondary bar:** **5-hour allowance (Claude & GPT)** (`300` min window) with reset countdown
-     - **Tertiary bar:** **7-day allowance (Claude & GPT)** (`10,080` min weekly window) with reset countdown
+     - **Panel and hero:** Gemini 4 Argon weekly remaining allowance (`10,080` minutes).
+     - **Details:** Gemini Models and Claude & GPT each have explicit weekly and five-hour windows.
+   - Explicit summary buckets take precedence over per-model fallback values.
+     Reset countdown length is not used to guess a weekly window.
    - Falls back to the local `language_server_linux_x64` Connect-RPC (`GetUserStatus`) or cached network limits (`~/.cache/antigravity-usage-supervisor/`) when offline.
 2. **Local Session, Token & Focus Telemetry (`~/.gemini/antigravity-cli`):**
    - Scans `brain/*/.system_generated/logs/transcript.jsonl`, `conversation_summaries.db`, `annotations/*.pbtxt`, and `cli.log`.
@@ -102,7 +97,7 @@ Then enable the extension:
 gnome-extensions enable antigravity-usage-supervisor@owen.local
 ```
 
-The `AGY <pct>%` indicator (reporting the Gemini 5-hour limit) will immediately appear in the top-right panel.
+The `G4 <pct>% left` indicator (reporting Argon weekly remaining quota) will immediately appear in the top-right panel.
 
 > **Note on GNOME Shell Versions:** `extension/metadata.json` lists GNOME Shell `42`, `43`, and `44` (Ubuntu 22.04–23.04). If installing on Ubuntu 23.10 or 24.04+ (GNOME Shell `45`/`46`) or if GNOME Shell reports a version mismatch, disable version validation with:
 > ```bash
