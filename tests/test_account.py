@@ -11,6 +11,43 @@ from antigravity_usage_supervisor.account import (
 
 
 class AccountLimitsTest(unittest.TestCase):
+    def test_hydrogen_uses_shared_gemini_not_argon(self) -> None:
+        summary = {"groups": [
+            {"displayName": "Gemini 4 Argon", "buckets": [
+                {"bucketId": "gemini-argon-wtu-weekly", "window": "weekly", "remainingFraction": 0}]},
+            {"displayName": "Gemini Models", "buckets": [
+                {"bucketId": "gemini-5h", "window": "5h", "remainingFraction": 0.9},
+                {"bucketId": "gemini-weekly", "window": "weekly", "remainingFraction": 0.8}]},
+        ]}
+        for model in ("Gemini 4 Hydrogen (XHigh)", "antigravity/gemini-4-hydrogen-low", "Gemini 3.8 Flash"):
+            with self.subTest(model=model):
+                limits = parse_cloudcode_quota({}, {}, summary, active_model=model)
+                self.assertEqual(limits.primary.bucket_id, "gemini-5h")
+                self.assertEqual(limits.secondary.bucket_id, "gemini-weekly")
+                self.assertEqual(limits.gemini_argon_weekly.used_percent, 100)
+        for model in ("gemini-pro-orchestrator-g1-pro", "Orchestrator (Argon)"):
+            limits = parse_cloudcode_quota({}, {}, summary, active_model=model)
+            self.assertEqual(limits.primary.bucket_id, "gemini-argon-wtu-weekly")
+
+    def test_hydrogen_per_model_fallback_does_not_fabricate_argon(self) -> None:
+        for model in ("gemini-4-hydrogen-low", "gemini-4-hydrogen-xhigh"):
+            limits = parse_cloudcode_quota({}, {"buckets": [
+                {"modelId": model, "remainingFraction": 0.9},
+            ]}, active_model=model)
+            self.assertIsNone(limits.gemini_argon_weekly)
+            self.assertIsNone(limits.gemini_weekly)
+            self.assertEqual(limits.primary.bucket_id, "gemini-5h")
+
+    def test_hydrogen_language_server_fallback_is_shared(self) -> None:
+        limits = parse_user_status_response({"userStatus": {"cascadeModelConfigData": {
+            "clientModelConfigs": [
+                {"label": "Gemini 4 Hydrogen (High)", "quotaInfo": {"remainingFraction": 1}},
+                {"label": "Orchestrator (Argon)", "quotaInfo": {"remainingFraction": 0}},
+            ]}}}, active_model="Gemini 4 Hydrogen (High)")
+        self.assertEqual(limits.primary.bucket_id, "gemini-5h")
+        self.assertEqual(limits.primary.used_percent, 0)
+        self.assertEqual(limits.gemini_argon_weekly.used_percent, 100)
+
     def test_parses_google_ai_pro_cloudcode_quota(self) -> None:
         load_resp = {
             "paidTier": {"id": "g1-pro-tier", "name": "Google AI Pro"},

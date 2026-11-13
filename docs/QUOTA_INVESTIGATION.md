@@ -2,6 +2,27 @@
 
 ## 1. How Antigravity Tracks Quota for Google AI Pro Individual Accounts
 
+### Hydrogen verification — 2026-11-13
+
+A real `gemini-4-hydrogen-low` generation succeeded while Argon's weekly quota
+was exhausted. Before the request, Hydrogen, Flash and the regular Gemini
+group all reported 100% remaining. Afterwards:
+
+- All four Hydrogen variants and all Gemini 3.8 Flash variants reported exactly
+  `remainingFraction: 0.9994572` and the same reset time.
+- The authoritative `gemini-5h` bucket reported `0.9994572`, while
+  `gemini-weekly` reported `0.99984485`.
+- Argon and `gemini-pro-orchestrator-g1-pro` remained at `0`, sharing the
+  Argon weekly reset time (`2026-11-17T04:49:13Z`).
+
+Thus **Hydrogen shares the regular Gemini five-hour and weekly allowance with
+Flash/Pro on this Google AI Pro account**. It is not part of the separate Argon
+allowance. The advertised orchestrator is labelled **Orchestrator (Argon)**;
+it is not a way around Argon's exhausted quota. No paid-credit override was used.
+The parser must match Argon explicitly, never treat all `gemini-4` ids as Argon.
+
+### Earlier account layout
+
 Antigravity (`agy` CLI and Antigravity IDE) authenticates individual Google AI Pro
 users via consumer OAuth (`auth_method: "consumer"`) and maps the account to tier
 `g1-pro-tier` (`Google AI Pro`) under companion project `aicode-consumers`.

@@ -347,7 +347,7 @@ def _select_primary_and_secondary(
 ) -> tuple[RateWindow | None, RateWindow | None]:
     """Select primary and secondary quota windows based on the active model family."""
     model_lower = (active_model or "Gemini 4 Argon (Medium)").lower()
-    is_argon = "argon" in model_lower or "gemini 4" in model_lower or "gemini-4" in model_lower
+    is_argon = "argon" in model_lower or "gemini-pro-orchestrator-g1-pro" in model_lower
     is_claude_gpt = any(k in model_lower for k in ("claude", "sonnet", "opus", "gpt"))
 
     if is_argon and gemini_argon_weekly is not None:
@@ -359,6 +359,10 @@ def _select_primary_and_secondary(
         primary = claude_5h or claude_weekly
         secondary = gemini_argon_weekly or gemini_5h or (claude_weekly if primary is claude_5h else None)
         return primary, secondary
+
+    # Hydrogen shares the regular Gemini windows with Flash/Pro, not Argon.
+    if "gemini" in model_lower and not is_argon:
+        return gemini_5h or gemini_weekly, gemini_weekly if gemini_5h else None
 
     primary = gemini_5h or gemini_argon_weekly or gemini_weekly or claude_5h or claude_weekly
     if primary is gemini_5h:
@@ -406,7 +410,7 @@ def parse_cloudcode_quota(
             if not isinstance(group, dict):
                 continue
             gname = str(group.get("displayName") or "").lower()
-            is_argon_group = "argon" in gname or "gemini 4" in gname
+            is_argon_group = "argon" in gname
             is_gemini_group = "gemini" in gname and not is_argon_group
             for bucket in group.get("buckets") or []:
                 if not isinstance(bucket, dict):
@@ -480,7 +484,7 @@ def parse_cloudcode_quota(
             if used is None:
                 continue
             reset_dt = _timestamp(bucket.get("resetTime"))
-            if "argon" in model_id or "gemini-4" in model_id:
+            if "argon" in model_id or model_id == "gemini-pro-orchestrator-g1-pro":
                 if reported_argon:
                     continue
                 gemini_argon_weekly = _merge_windows(
@@ -525,7 +529,7 @@ def parse_cloudcode_quota(
         groups.append(
             ModelGroupQuota(
                 group_id="gemini",
-                display_name="Gemini Models",
+                display_name="Gemini Models (Hydrogen, Flash & Pro)",
                 five_hour=gemini_5h,
                 weekly=gemini_weekly,
             )
@@ -693,7 +697,7 @@ def parse_user_status_response(
             continue
         reset_dt = _timestamp(qinfo.get("resetTime"))
         lower_label = label.lower()
-        if "argon" in lower_label or "gemini 4" in lower_label or "gemini-4" in lower_label:
+        if "argon" in lower_label or "gemini-pro-orchestrator-g1-pro" in lower_label:
             gemini_argon_weekly = _merge_windows(
                 gemini_argon_weekly,
                 RateWindow(

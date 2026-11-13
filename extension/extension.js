@@ -108,7 +108,7 @@ class AntigravityIndicator extends PanelMenu.Button {
             style_class: 'system-status-icon agy-panel-icon',
         });
         this._panelLabel = new St.Label({
-            text: 'G4 —',
+            text: 'A — · G —',
             y_align: Clutter.ActorAlign.CENTER,
         });
         panelBox.add_child(this._panelIcon);
@@ -144,6 +144,15 @@ class AntigravityIndicator extends PanelMenu.Button {
         body.add_child(this._primaryCaption);
         this._primaryBar = new ProgressLine('agy-progress-primary');
         body.add_child(this._primaryBar.actor);
+        this._sharedCaption = new St.Label({
+            text: 'Hydrogen / Flash / Pro\nWaiting for shared Gemini quota',
+            style_class: 'agy-caption',
+        });
+        body.add_child(this._sharedCaption);
+        this._sharedReset = new St.Label({text: '', style_class: 'agy-reset'});
+        body.add_child(this._sharedReset);
+        this._sharedBar = new ProgressLine('agy-progress-primary');
+        body.add_child(this._sharedBar.actor);
         this._modelMeta = new St.Label({ text: '', style_class: 'agy-model-meta' });
         body.add_child(this._modelMeta);
 
@@ -247,6 +256,29 @@ class AntigravityIndicator extends PanelMenu.Button {
             this._setUrgency(0);
         }
 
+        // Separate Argon's dedicated weekly limit from Hydrogen/Flash/Pro.
+        // Show the tighter shared window without substituting another family.
+        const geminiGroup = groups.find(g => g.group_id === 'gemini') || {};
+        const sharedWindows = [limits.gemini_weekly || geminiGroup.weekly,
+            limits.gemini_5h || geminiGroup.five_hour].filter(Boolean);
+        const remaining = w => w.remaining_percent !== undefined
+            ? Number(w.remaining_percent) : Math.max(0, 100 - Number(w.used_percent || 0));
+        const sharedWindow = sharedWindows.reduce((tightest, w) =>
+            !tightest || remaining(w) < remaining(tightest) ? w : tightest, null);
+        const argonText = heroWindow ? formatPercent(remaining(heroWindow)) : '—';
+        if (sharedWindow) {
+            const left = remaining(sharedWindow);
+            this._panelLabel.text = `A ${argonText} · G ${formatPercent(left)}`;
+            this._sharedCaption.text = `Hydrogen / Flash / Pro\n${formatPercent(left)} left · shared ${sharedWindow.window_minutes === 10080 ? 'weekly' : '5-hour'} limit`;
+            this._sharedReset.text = resetText(sharedWindow.resets_at);
+            this._sharedBar.setFraction(left / 100);
+        } else {
+            this._panelLabel.text = `A ${argonText} · G —`;
+            this._sharedCaption.text = 'Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
+            this._sharedReset.text = '';
+            this._sharedBar.setFraction(0);
+        }
+
         const activeModel = summary.active_model || limits.active_model || '';
         const email = summary.account_email || limits.account_email || '';
         const metaParts = [activeModel, email].filter(Boolean);
@@ -342,11 +374,15 @@ class AntigravityIndicator extends PanelMenu.Button {
     }
 
     _showError(message) {
-        this._panelLabel.text = 'G4 !';
+        this._panelLabel.text = 'A — · G —';
         this._liveLabel.text = '● OFFLINE';
         this._liveLabel.add_style_class_name('agy-error');
         this._primaryValue.text = 'Unavailable';
         this._primaryCaption.text = message;
+        this._primaryBar.setFraction(0);
+        this._sharedCaption.text = 'Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
+        this._sharedReset.text = '';
+        this._sharedBar.setFraction(0);
     }
 
     destroy() {

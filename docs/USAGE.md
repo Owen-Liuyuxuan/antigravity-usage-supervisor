@@ -2,11 +2,13 @@
 
 ## Where the visualization lives
 
-The top-panel indicator displays **Gemini 4 Argon weekly quota remaining**, for
-example `G4 0.81% left`. It stays focused on Argon when other models are selected.
+The top-panel indicator displays **Argon weekly and shared Gemini quota remaining**,
+for example `A 0% · G 99.95%`. `A` is Argon / Orchestrator's dedicated weekly
+allowance; `G` is the tighter shared Gemini weekly/five-hour window used by
+Hydrogen, Flash and Pro. These remain visible regardless of the active model.
 The launcher opens a **Details** tab containing all five quota windows, plus a
 separate **Settings** tab. Percentages retain two decimal places where needed.
-Missing Argon quota displays `G4 —` rather than substituting another quota.
+Missing quota displays `—` rather than substituting another family's quota.
 
 After installing the package or running `./packaging/install_user.sh`, enable
 the extension:
@@ -26,9 +28,10 @@ systemctl --user daemon-reload
 systemctl --user restart antigravity-usage-supervisor.service
 ```
 
-Click the `G4` panel indicator to see:
+Click the `A … · G …` panel indicator to see:
 
 - **Gemini 4 Argon weekly** remaining quota, used percentage, and reset countdown;
+- **Hydrogen / Flash / Pro shared** remaining quota and the tighter window's reset;
 - active model and signed-in account;
 - today's tasks, estimated focus time, local tokens, and recent conversations;
 - **Details & Preferences**, opening all five quota windows and settings.

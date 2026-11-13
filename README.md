@@ -2,16 +2,17 @@
 
 [![CI](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml/badge.svg)](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml)
 
-A privacy-focused GNOME Shell addon for Ubuntu 22.04+ focused on **Gemini 4
-Argon weekly quota**. The top panel shows remaining allowance, for example
-`G4 0.81% left`, regardless of the currently selected model. The popover shows
-Argon's remaining bar, used percentage, reset countdown, and local activity.
+A privacy-focused GNOME Shell addon for Ubuntu 22.04+ showing **Argon weekly
+quota and the shared Hydrogen / Flash / Pro allowance**. The top panel shows
+`A 0% · G 99.95%`: `A` is Argon's dedicated weekly quota and `G` is the tighter
+of the shared Gemini weekly and five-hour windows. The popover shows both
+allowances separately, reset countdowns, and local activity.
 
 ## Features & Components
 
-- **GNOME Shell extension:** Argon weekly allowance in the panel and popover,
+- **GNOME Shell extension:** Argon and shared Hydrogen / Flash / Pro allowance in the panel and popover,
   with two decimal places and warning colors based on quota consumed. Missing
-  Argon data displays `G4 —`; another model's quota is never substituted.
+  quota data displays `—`; another family's quota is never substituted.
 - **Details tab:** All five quota windows: Argon weekly, Gemini Models weekly
   and five-hour, and Claude & GPT weekly and five-hour.
 - **Settings tab:** Personal token/focus goals, notification threshold, refresh
@@ -31,7 +32,7 @@ See the [usage guide](docs/USAGE.md), [architecture](docs/ARCHITECTURE.md), and
    - Reads the locally authenticated Antigravity OAuth credentials from GNOME Keyring (`org.freedesktop.secrets`, `service="gemini", username="antigravity"`) or `~/.config/antigravity/plugin-secrets.json`, automatically refreshing expired access tokens in-memory.
    - Queries `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` across both Cloud Code Assist endpoints to obtain:
      - **Plan tier:** `Google AI Pro` (`g1-pro-tier`)
-     - **Panel and hero:** Gemini 4 Argon weekly remaining allowance (`10,080` minutes).
+     - **Panel and hero:** Argon weekly remaining allowance (`10,080` minutes), alongside the tighter shared Gemini weekly/five-hour allowance used by Hydrogen / Flash / Pro.
      - **Details:** Gemini Models and Claude & GPT each have explicit weekly and five-hour windows.
    - Explicit summary buckets take precedence over per-model fallback values.
      Reset countdown length is not used to guess a weekly window.
@@ -97,7 +98,7 @@ Then enable the extension:
 gnome-extensions enable antigravity-usage-supervisor@owen.local
 ```
 
-The `G4 <pct>% left` indicator (reporting Argon weekly remaining quota) will immediately appear in the top-right panel.
+The `A <pct>% · G <pct>%` indicator will appear in the top-right panel.
 
 > **Note on GNOME Shell Versions:** `extension/metadata.json` lists GNOME Shell `42`, `43`, and `44` (Ubuntu 22.04–23.04). If installing on Ubuntu 23.10 or 24.04+ (GNOME Shell `45`/`46`) or if GNOME Shell reports a version mismatch, disable version validation with:
 > ```bash

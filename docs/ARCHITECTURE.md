@@ -57,5 +57,6 @@ Owns `io.github.owen.AntigravityUsageSupervisor` on the user session bus at
 
 ### GNOME Shell extension (`extension/extension.js`)
 
-Renders the `G4 <percent>% left` top-panel indicator and frameless popover. Performs
+Renders the `A <percent>% · G <percent>%` top-panel indicator and frameless popover.
+Argon / Orchestrator is separate from shared Hydrogen / Flash / Pro quota. Performs
 only asynchronous D-Bus calls.
