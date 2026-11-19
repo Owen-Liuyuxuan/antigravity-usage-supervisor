@@ -3,14 +3,14 @@
 [![CI](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml/badge.svg)](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml)
 
 A privacy-focused GNOME Shell addon for Ubuntu 22.04+ showing **Argon weekly
-quota and the shared Hydrogen / Flash / Pro allowance**. The top panel shows
-`A 0% · G 99.95%`: `A` is Argon's dedicated weekly quota and `G` is the tighter
-of the shared Gemini weekly and five-hour windows. The popover shows both
-allowances separately, reset countdowns, and local activity.
+quota and the shared Neon / Hydrogen / Flash / Pro allowance**. The top panel shows
+`A 28.75% · G 1.01%`: `A` is Argon's 7-day quota used and `G` is Gemini's
+5-hour quota used. The popover shows both allowances separately, reset countdowns,
+and local activity.
 
 ## Features & Components
 
-- **GNOME Shell extension:** Argon and shared Hydrogen / Flash / Pro allowance in the panel and popover,
+- **GNOME Shell extension:** Argon and shared Neon / Hydrogen / Flash / Pro allowance in the panel and popover,
   with two decimal places and warning colors based on quota consumed. Missing
   quota data displays `—`; another family's quota is never substituted.
 - **Details tab:** All five quota windows: Argon weekly, Gemini Models weekly
@@ -32,7 +32,7 @@ See the [usage guide](docs/USAGE.md), [architecture](docs/ARCHITECTURE.md), and
    - Reads the locally authenticated Antigravity OAuth credentials from GNOME Keyring (`org.freedesktop.secrets`, `service="gemini", username="antigravity"`) or `~/.config/antigravity/plugin-secrets.json`, automatically refreshing expired access tokens in-memory.
    - Queries `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` across both Cloud Code Assist endpoints to obtain:
      - **Plan tier:** `Google AI Pro` (`g1-pro-tier`)
-     - **Panel and hero:** Argon weekly remaining allowance (`10,080` minutes), alongside the tighter shared Gemini weekly/five-hour allowance used by Hydrogen / Flash / Pro.
+     - **Panel and hero:** Argon 7-day used percentage (`10,080` minutes) and Gemini 5-hour used percentage in the top panel; popover shows Argon weekly allowance alongside the tighter shared Gemini weekly/five-hour allowance used by Neon / Hydrogen / Flash / Pro.
      - **Details:** Gemini Models and Claude & GPT each have explicit weekly and five-hour windows.
    - Explicit summary buckets take precedence over per-model fallback values.
      Reset countdown length is not used to guess a weekly window.

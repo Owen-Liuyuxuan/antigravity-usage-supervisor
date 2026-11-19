@@ -360,8 +360,8 @@ def _select_primary_and_secondary(
         secondary = gemini_argon_weekly or gemini_5h or (claude_weekly if primary is claude_5h else None)
         return primary, secondary
 
-    # Hydrogen shares the regular Gemini windows with Flash/Pro, not Argon.
-    if "gemini" in model_lower and not is_argon:
+    # Neon and Hydrogen share the regular Gemini windows with Flash/Pro, not Argon.
+    if ("gemini" in model_lower or "neon" in model_lower) and not is_argon:
         return gemini_5h or gemini_weekly, gemini_weekly if gemini_5h else None
 
     primary = gemini_5h or gemini_argon_weekly or gemini_weekly or claude_5h or claude_weekly
@@ -497,7 +497,7 @@ def parse_cloudcode_quota(
                         bucket_id="gemini-argon-wtu-weekly",
                     ),
                 )
-            elif "gemini" in model_id:
+            elif "gemini" in model_id or "neon" in model_id:
                 if reported_gemini:
                     continue
                 gemini_5h = _merge_windows(
@@ -529,7 +529,7 @@ def parse_cloudcode_quota(
         groups.append(
             ModelGroupQuota(
                 group_id="gemini",
-                display_name="Gemini Models (Hydrogen, Flash & Pro)",
+                display_name="Gemini Models (Neon, Hydrogen, Flash & Pro)",
                 five_hour=gemini_5h,
                 weekly=gemini_weekly,
             )
@@ -708,7 +708,7 @@ def parse_user_status_response(
                     bucket_id="gemini-argon-wtu-weekly",
                 ),
             )
-        elif "gemini" in lower_label:
+        elif "gemini" in lower_label or "neon" in lower_label:
             gemini_5h = _merge_windows(
                 gemini_5h,
                 RateWindow(used, 300, reset_dt, label="5-hour allowance (Gemini)", bucket_id="gemini-5h"),

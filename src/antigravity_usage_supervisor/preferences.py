@@ -104,7 +104,7 @@ class PreferencesApplication(Adw.Application):
 
         self._quota_group = Adw.PreferencesGroup(
             title="Google AI Pro quota allowances",
-            description="Argon / Orchestrator has a dedicated 7-day limit. Hydrogen, Flash and Pro share Gemini 5-hour and 7-day limits; Claude &amp; GPT have separate shared limits.",
+            description="Argon / Orchestrator has a dedicated 7-day limit. Neon, Hydrogen, Flash and Pro share Gemini 5-hour and 7-day limits; Claude &amp; GPT have separate shared limits.",
         )
         refresh_btn = Gtk.Button(
             icon_name="view-refresh-symbolic",
@@ -116,8 +116,8 @@ class PreferencesApplication(Adw.Application):
         self._quota_group.set_header_suffix(refresh_btn)
 
         self._gemini_argon_7d_row = _QuotaLimitRow("7-day allowance (Gemini 4 Argon)")
-        self._gemini_5h_row = _QuotaLimitRow("5-hour shared allowance (Hydrogen / Flash / Pro)")
-        self._gemini_7d_row = _QuotaLimitRow("7-day shared allowance (Hydrogen / Flash / Pro)")
+        self._gemini_5h_row = _QuotaLimitRow("5-hour shared allowance (Neon / Hydrogen / Flash / Pro)")
+        self._gemini_7d_row = _QuotaLimitRow("7-day shared allowance (Neon / Hydrogen / Flash / Pro)")
         self._claude_5h_row = _QuotaLimitRow("5-hour allowance (Claude & GPT)")
         self._claude_7d_row = _QuotaLimitRow("7-day allowance (Claude & GPT)")
         self._quota_group.add(self._gemini_argon_7d_row.row)

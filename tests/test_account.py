@@ -19,7 +19,14 @@ class AccountLimitsTest(unittest.TestCase):
                 {"bucketId": "gemini-5h", "window": "5h", "remainingFraction": 0.9},
                 {"bucketId": "gemini-weekly", "window": "weekly", "remainingFraction": 0.8}]},
         ]}
-        for model in ("Gemini 4 Hydrogen (XHigh)", "antigravity/gemini-4-hydrogen-low", "Gemini 3.8 Flash"):
+        for model in (
+            "Gemini 4 Neon (Medium)",
+            "Orchestrator (Neon)",
+            "gemini-pro-orchestrator-neon",
+            "Gemini 4 Hydrogen (XHigh)",
+            "antigravity/gemini-4-hydrogen-low",
+            "Gemini 3.8 Flash",
+        ):
             with self.subTest(model=model):
                 limits = parse_cloudcode_quota({}, {}, summary, active_model=model)
                 self.assertEqual(limits.primary.bucket_id, "gemini-5h")
