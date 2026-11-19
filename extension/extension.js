@@ -145,7 +145,7 @@ class AntigravityIndicator extends PanelMenu.Button {
         this._primaryBar = new ProgressLine('agy-progress-primary');
         body.add_child(this._primaryBar.actor);
         this._sharedCaption = new St.Label({
-            text: 'Hydrogen / Flash / Pro\nWaiting for shared Gemini quota',
+            text: 'Neon / Hydrogen / Flash / Pro\nWaiting for shared Gemini quota',
             style_class: 'agy-caption',
         });
         body.add_child(this._sharedCaption);
@@ -236,45 +236,50 @@ class AntigravityIndicator extends PanelMenu.Button {
             || (limits.primary && limits.primary.bucket_id === 'gemini-argon-wtu-weekly'
                 ? limits.primary : null);
 
+        const usedPercent = w => {
+            if (w.used_percent !== undefined)
+                return Number(w.used_percent);
+            if (w.remaining_percent !== undefined)
+                return Math.max(0, 100 - Number(w.remaining_percent));
+            return 0;
+        };
+        const remainingPercent = w => w.remaining_percent !== undefined
+            ? Number(w.remaining_percent) : Math.max(0, 100 - Number(w.used_percent || 0));
+
         if (heroWindow) {
-            const usedNum = Number(heroWindow.used_percent || 0);
-            const remNum = heroWindow.remaining_percent !== undefined
-                ? Number(heroWindow.remaining_percent)
-                : Math.max(0, 100 - usedNum);
+            const usedNum = usedPercent(heroWindow);
+            const remNum = remainingPercent(heroWindow);
             const pctUsed = formatPercent(usedNum);
             const pctLeft = formatPercent(remNum);
-            this._panelLabel.text = `G4 ${pctLeft} left`;
             this._primaryValue.text = `${pctLeft} left`;
             this._primaryCaption.text = `${windowName(heroWindow)}  ·  ${pctUsed} used  ·  ${resetText(heroWindow.resets_at)}`;
             this._primaryBar.setFraction(remNum / 100);
             this._setUrgency(usedNum);
         } else {
-            this._panelLabel.text = 'G4 —';
             this._primaryValue.text = 'Argon quota unavailable';
             this._primaryCaption.text = 'Check Antigravity sign-in or refresh';
             this._primaryBar.setFraction(0);
             this._setUrgency(0);
         }
 
-        // Separate Argon's dedicated weekly limit from Hydrogen/Flash/Pro.
-        // Show the tighter shared window without substituting another family.
+        // Separate Argon's dedicated weekly limit from Neon/Hydrogen/Flash/Pro.
+        // Top panel shows used % for Argon 7d and Gemini 5h only.
         const geminiGroup = groups.find(g => g.group_id === 'gemini') || {};
-        const sharedWindows = [limits.gemini_weekly || geminiGroup.weekly,
-            limits.gemini_5h || geminiGroup.five_hour].filter(Boolean);
-        const remaining = w => w.remaining_percent !== undefined
-            ? Number(w.remaining_percent) : Math.max(0, 100 - Number(w.used_percent || 0));
+        const gemini5hWindow = limits.gemini_5h || geminiGroup.five_hour || null;
+        const argonText = heroWindow ? formatPercent(usedPercent(heroWindow)) : '—';
+        const gemini5hText = gemini5hWindow ? formatPercent(usedPercent(gemini5hWindow)) : '—';
+        this._panelLabel.text = `A ${argonText} · G ${gemini5hText}`;
+
+        const sharedWindows = [limits.gemini_weekly || geminiGroup.weekly, gemini5hWindow].filter(Boolean);
         const sharedWindow = sharedWindows.reduce((tightest, w) =>
-            !tightest || remaining(w) < remaining(tightest) ? w : tightest, null);
-        const argonText = heroWindow ? formatPercent(remaining(heroWindow)) : '—';
+            !tightest || remainingPercent(w) < remainingPercent(tightest) ? w : tightest, null);
         if (sharedWindow) {
-            const left = remaining(sharedWindow);
-            this._panelLabel.text = `A ${argonText} · G ${formatPercent(left)}`;
-            this._sharedCaption.text = `Hydrogen / Flash / Pro\n${formatPercent(left)} left · shared ${sharedWindow.window_minutes === 10080 ? 'weekly' : '5-hour'} limit`;
+            const left = remainingPercent(sharedWindow);
+            this._sharedCaption.text = `Neon / Hydrogen / Flash / Pro\n${formatPercent(left)} left · shared ${sharedWindow.window_minutes === 10080 ? 'weekly' : '5-hour'} limit`;
             this._sharedReset.text = resetText(sharedWindow.resets_at);
             this._sharedBar.setFraction(left / 100);
         } else {
-            this._panelLabel.text = `A ${argonText} · G —`;
-            this._sharedCaption.text = 'Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
+            this._sharedCaption.text = 'Neon / Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
             this._sharedReset.text = '';
             this._sharedBar.setFraction(0);
         }
@@ -380,7 +385,7 @@ class AntigravityIndicator extends PanelMenu.Button {
         this._primaryValue.text = 'Unavailable';
         this._primaryCaption.text = message;
         this._primaryBar.setFraction(0);
-        this._sharedCaption.text = 'Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
+        this._sharedCaption.text = 'Neon / Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
         this._sharedReset.text = '';
         this._sharedBar.setFraction(0);
     }
