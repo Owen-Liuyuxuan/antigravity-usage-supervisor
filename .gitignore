@@ -12,3 +12,6 @@ dist/
 .idea/
 .vscode/
 *~
+
+windows/**/bin/
+windows/**/obj/

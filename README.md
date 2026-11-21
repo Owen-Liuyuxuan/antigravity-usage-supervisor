@@ -2,13 +2,20 @@
 
 [![CI](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml/badge.svg)](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml)
 
-A privacy-focused GNOME Shell addon for Ubuntu 22.04+ showing **Argon weekly
-quota and the shared Neon / Hydrogen / Flash / Pro allowance**. The top panel shows
+A desktop monitor for **Argon weekly quota and the shared Neon / Hydrogen /
+Flash / Pro allowance**, with local token and activity estimates.
+
+| Platform | Interface | Installation |
+| --- | --- | --- |
+| Ubuntu 22.04+ | GNOME Shell panel and GTK preferences | [Ubuntu installation](#installing-on-another-ubuntu-machine) |
+| Windows x64 / ARM64 | WPF tray app and usage flyout | [Windows installation](docs/WINDOWS.md) |
+
+On Ubuntu, the top panel shows
 `A 28.75% · G 1.01%`: `A` is Argon's 7-day quota used and `G` is Gemini's
 5-hour quota used. The popover shows both allowances separately, reset countdowns,
 and local activity.
 
-## Features & Components
+## Ubuntu Features & Components
 
 - **GNOME Shell extension:** Argon and shared Neon / Hydrogen / Flash / Pro allowance in the panel and popover,
   with two decimal places and warning colors based on quota consumed. Missing
@@ -26,7 +33,7 @@ See the [usage guide](docs/USAGE.md), [architecture](docs/ARCHITECTURE.md), and
 
 ---
 
-## How Quota & Activity Monitoring Works
+## How Quota & Activity Monitoring Works on Ubuntu
 
 1. **Live Google AI Pro Quota Buckets (`● ACCOUNT`):**
    - Reads the locally authenticated Antigravity OAuth credentials from GNOME Keyring (`org.freedesktop.secrets`, `service="gemini", username="antigravity"`) or `~/.config/antigravity/plugin-secrets.json`, automatically refreshing expired access tokens in-memory.
