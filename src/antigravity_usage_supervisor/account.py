@@ -5,7 +5,9 @@ from __future__ import annotations
 import base64
 import json
 import os
+import platform
 import re
+import shutil
 import ssl
 import subprocess
 import urllib.error
@@ -26,6 +28,19 @@ _CACHED_CLIENT_CREDS: tuple[str, str] | None = None
 _CACHED_USER_AGENT: str | None = None
 
 
+def _cli_candidates() -> tuple[Path, ...]:
+    if os.name == "nt":
+        default = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
+        candidates = (default / "agy" / "bin" / "agy.exe",)
+        executable = shutil.which("agy.exe")
+        return (Path(executable), *candidates) if executable else candidates
+    return (
+        Path.home() / ".local" / "bin" / "agy",
+        Path("/usr/local/bin/agy"),
+        Path("/usr/bin/agy"),
+    )
+
+
 def _discover_cli_user_agent() -> str:
     """Build the Antigravity CLI User-Agent required by Cloud Code Assist for full quota groups."""
     global _CACHED_USER_AGENT
@@ -42,11 +57,7 @@ def _discover_cli_user_agent() -> str:
     ver_pattern = re.compile(rb"(\d+\.\d+\.\d+)\nDate: ")
     cl_pattern = re.compile(rb"\(SrcFS\)[\s\S]{1,120}?([1-9]\d{8,10})\x00+\1")
 
-    for candidate in (
-        Path.home() / ".local" / "bin" / "agy",
-        Path("/usr/local/bin/agy"),
-        Path("/usr/bin/agy"),
-    ):
+    for candidate in _cli_candidates():
         if not candidate.is_file():
             continue
         try:
@@ -56,14 +67,26 @@ def _discover_cli_user_agent() -> str:
         ver_m = ver_pattern.search(raw)
         if ver_m:
             version = ver_m.group(1).decode("ascii", errors="ignore")
+        elif os.name == "nt":
+            try:
+                installed = subprocess.check_output(
+                    [str(candidate), "--version"], stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW, text=True, timeout=3,
+                ).strip()
+                if re.fullmatch(r"\d+\.\d+\.\d+", installed):
+                    version = installed
+            except (OSError, subprocess.SubprocessError):
+                pass
         cl_m = cl_pattern.search(raw)
         if cl_m:
             cl = cl_m.group(1).decode("ascii", errors="ignore")
         break
 
+    os_type = "windows" if os.name == "nt" else "linux"
+    arch = "arm64" if platform.machine().lower() in {"arm64", "aarch64"} else "amd64"
     _CACHED_USER_AGENT = (
         f"antigravity/cli/{version} "
-        f"(aidev_client; os_type=linux; arch=amd64; cl={cl}; auth_method=consumer)"
+        f"(aidev_client; os_type={os_type}; arch={arch}; cl={cl}; auth_method=consumer)"
     )
     return _CACHED_USER_AGENT
 
@@ -85,9 +108,7 @@ def _discover_local_oauth_client() -> tuple[str, str]:
 
     candidates = [
         Path("/usr/share/antigravity/resources/app/out/main.js"),
-        Path.home() / ".local" / "bin" / "agy",
-        Path("/usr/local/bin/agy"),
-        Path("/usr/bin/agy"),
+        *_cli_candidates(),
     ]
     found_id = env_id
     found_secret = env_secret
@@ -226,15 +247,55 @@ def _read_plugin_secrets_file() -> dict[str, Any] | None:
     return None
 
 
+def _read_windows_credential() -> dict[str, Any] | None:
+    """Read only agy's known generic credential for the current Windows user."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Credential(ctypes.Structure):
+        _fields_ = [
+            ("flags", wintypes.DWORD),
+            ("type", wintypes.DWORD),
+            ("target_name", wintypes.LPWSTR),
+            ("comment", wintypes.LPWSTR),
+            ("last_written", wintypes.FILETIME),
+            ("blob_size", wintypes.DWORD),
+            ("blob", ctypes.c_void_p),
+        ]
+
+    api = ctypes.WinDLL("advapi32", use_last_error=True)
+    read = api.CredReadW
+    read.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                     ctypes.POINTER(ctypes.POINTER(Credential)))
+    read.restype = wintypes.BOOL
+    free = api.CredFree
+    free.argtypes = (ctypes.c_void_p,)
+    free.restype = None
+    pointer = ctypes.POINTER(Credential)()
+    if not read("gemini:antigravity", 1, 0, ctypes.byref(pointer)):
+        return None
+    try:
+        credential = pointer.contents
+        raw = ctypes.string_at(credential.blob, credential.blob_size)
+        try:
+            value = json.loads(raw)
+        except (ValueError, UnicodeError):
+            return None
+        return value if isinstance(value, dict) else None
+    finally:
+        free(pointer)
+
+
 def load_oauth_credentials() -> dict[str, Any]:
-    """Load Antigravity OAuth credentials from GNOME Keyring or fallback secret store."""
-    secret = (
-        _read_keyring_secret_dbus()
-        or _read_keyring_secret_cli()
-        or _read_plugin_secrets_file()
-    )
+    """Load the current user's existing Antigravity OAuth session."""
+    if os.name == "nt":
+        secret = _read_windows_credential()
+        missing = "Open agy and sign in to Google, then refresh this window"
+    else:
+        secret = _read_keyring_secret_dbus() or _read_keyring_secret_cli() or _read_plugin_secrets_file()
+        missing = "Antigravity OAuth credentials were not found in keyring or config"
     if not secret or not isinstance(secret.get("token"), dict):
-        raise AccountLimitsError("Antigravity OAuth credentials were not found in keyring or config")
+        raise AccountLimitsError(missing)
     return secret
 
 
@@ -792,6 +853,9 @@ def fetch_account_rate_limits(
         return fetch_cloudcode_rate_limits(active_model=active_model, timeout=timeout)
     except AccountLimitsError as error:
         errors.append(str(error))
+
+    if os.name == "nt":
+        raise AccountLimitsError(errors[0])
 
     try:
         return fetch_language_server_rate_limits(active_model=active_model, timeout=min(timeout, 3.0))

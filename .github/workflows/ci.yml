@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   verify:
+    name: Ubuntu / GNOME
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
@@ -26,3 +27,26 @@ jobs:
           desktop-file-validate packaging/antigravity-usage-supervisor.desktop
           shellcheck packaging/build_deb.sh packaging/install_user.sh
           ./packaging/build_deb.sh
+
+  windows:
+    name: Windows / WPF
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test Python
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Publish Windows tray app
+        run: |
+          $project = 'windows/AntigravityUsageSupervisor/AntigravityUsageSupervisor.csproj'
+          foreach ($runtime in 'win-x64', 'win-arm64') {
+            dotnet publish $project -c Release -r $runtime --self-contained true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

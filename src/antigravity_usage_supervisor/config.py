@@ -9,7 +9,10 @@ from pathlib import Path
 
 
 def config_path() -> Path:
-    base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
+    else:
+        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
     return base / "antigravity-usage-supervisor" / "settings.json"
 
 

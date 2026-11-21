@@ -7,6 +7,7 @@ numeric token counters are retained. Prompt and response content is ignored.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from collections import defaultdict
@@ -15,6 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import unquote, urlparse
+from urllib.request import url2pathname
 
 _MODEL_CHANGE_RE = re.compile(r"Model Selection from [^\n]*? to ([^\n.<]+?)\.?\s*(?:</USER_SETTINGS_CHANGE>|$)")
 _PBTXT_TITLE_RE = re.compile(r'title\s*:\s*"((?:[^"\\]|\\.)*)"')
@@ -127,6 +129,9 @@ def _uri_to_path(uri: str) -> str:
         return ""
     if uri.startswith("file://"):
         parsed = urlparse(uri)
+        if os.name == "nt":
+            path = f"//{parsed.netloc}{parsed.path}" if parsed.netloc not in {"", "localhost"} else parsed.path
+            return url2pathname(path)
         return unquote(parsed.path)
     return uri
 
@@ -163,7 +168,7 @@ def _load_db_summaries(antigravity_home: Path) -> dict[str, _SummaryRecord]:
     if not db_path.is_file():
         return records
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=1.0)
+        conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True, timeout=1.0)
         conn.row_factory = sqlite3.Row
         with conn:
             cursor = conn.execute(
