@@ -78,7 +78,6 @@ class PreferencesApplication(Adw.Application):
         super().__init__(application_id="io.github.owen.AntigravityUsageSupervisor.Preferences")
         self.settings = Settings.load()
         self._quota_group: Adw.PreferencesGroup | None = None
-        self._gemini_argon_7d_row: _QuotaLimitRow | None = None
         self._gemini_5h_row: _QuotaLimitRow | None = None
         self._gemini_7d_row: _QuotaLimitRow | None = None
         self._claude_5h_row: _QuotaLimitRow | None = None
@@ -104,7 +103,7 @@ class PreferencesApplication(Adw.Application):
 
         self._quota_group = Adw.PreferencesGroup(
             title="Google AI Pro quota allowances",
-            description="Argon / Orchestrator has a dedicated 7-day limit. Neon, Hydrogen, Flash and Pro share Gemini 5-hour and 7-day limits; Claude &amp; GPT have separate shared limits.",
+            description="Neon, Carbon, Argon, Hydrogen, Flash and Pro share Gemini 5-hour and 7-day limits; Claude &amp; GPT have separate shared limits.",
         )
         refresh_btn = Gtk.Button(
             icon_name="view-refresh-symbolic",
@@ -115,12 +114,10 @@ class PreferencesApplication(Adw.Application):
         refresh_btn.connect("clicked", self._on_refresh_clicked)
         self._quota_group.set_header_suffix(refresh_btn)
 
-        self._gemini_argon_7d_row = _QuotaLimitRow("7-day allowance (Gemini 4 Argon)")
-        self._gemini_5h_row = _QuotaLimitRow("5-hour shared allowance (Neon / Hydrogen / Flash / Pro)")
-        self._gemini_7d_row = _QuotaLimitRow("7-day shared allowance (Neon / Hydrogen / Flash / Pro)")
+        self._gemini_5h_row = _QuotaLimitRow("5-hour shared allowance (Neon / Carbon / Argon / Hydrogen / Flash / Pro)")
+        self._gemini_7d_row = _QuotaLimitRow("7-day shared allowance (Neon / Carbon / Argon / Hydrogen / Flash / Pro)")
         self._claude_5h_row = _QuotaLimitRow("5-hour allowance (Claude & GPT)")
         self._claude_7d_row = _QuotaLimitRow("7-day allowance (Claude & GPT)")
-        self._quota_group.add(self._gemini_argon_7d_row.row)
         self._quota_group.add(self._gemini_5h_row.row)
         self._quota_group.add(self._gemini_7d_row.row)
         self._quota_group.add(self._claude_5h_row.row)
@@ -286,33 +283,35 @@ class PreferencesApplication(Adw.Application):
     def _apply_summary(self, summary: dict[str, Any]) -> None:
         limits = summary.get("rate_limits") or {}
         groups = limits.get("groups") or []
-        argon_group = next((g for g in groups if isinstance(g, dict) and g.get("group_id") == "gemini_argon"), {})
         gemini_group = next((g for g in groups if isinstance(g, dict) and g.get("group_id") == "gemini"), {})
         claude_group = next((g for g in groups if isinstance(g, dict) and g.get("group_id") == "claude_gpt"), {})
 
         primary = limits.get("primary") or {}
         primary_bucket = str(primary.get("bucket_id") or "")
 
-        argon_7d = limits.get("gemini_argon_weekly") or argon_group.get("weekly")
         gemini_5h = limits.get("gemini_5h") or gemini_group.get("five_hour")
-        if gemini_5h is None and primary_bucket in ("", "gemini-5h") and argon_7d is None:
+        if gemini_5h is None and primary_bucket in ("", "gemini-5h"):
             gemini_5h = limits.get("primary")
         gemini_7d = limits.get("gemini_weekly") or gemini_group.get("weekly")
+        if gemini_7d is None and primary_bucket == "gemini-weekly":
+            gemini_7d = limits.get("primary")
         claude_5h = limits.get("claude_gpt_5h") or claude_group.get("five_hour")
-        if claude_5h is None and (limits.get("secondary") or {}).get("bucket_id") in ("", "3p-5h"):
+        if claude_5h is None and primary_bucket == "3p-5h":
+            claude_5h = limits.get("primary")
+        elif claude_5h is None and (limits.get("secondary") or {}).get("bucket_id") in ("", "3p-5h"):
             claude_5h = limits.get("secondary")
         claude_7d = limits.get("claude_gpt_weekly") or claude_group.get("weekly")
+        if claude_7d is None and primary_bucket == "3p-weekly":
+            claude_7d = limits.get("primary")
 
-        if self._gemini_argon_7d_row:
-            self._gemini_argon_7d_row.update(argon_7d, is_active=True)
         if self._gemini_5h_row:
-            self._gemini_5h_row.update(gemini_5h)
+            self._gemini_5h_row.update(gemini_5h, is_active=bool(gemini_5h and primary_bucket in ("", "gemini-5h")))
         if self._gemini_7d_row:
-            self._gemini_7d_row.update(gemini_7d)
+            self._gemini_7d_row.update(gemini_7d, is_active=bool(gemini_7d and primary_bucket == "gemini-weekly"))
         if self._claude_5h_row:
-            self._claude_5h_row.update(claude_5h)
+            self._claude_5h_row.update(claude_5h, is_active=bool(claude_5h and primary_bucket == "3p-5h"))
         if self._claude_7d_row:
-            self._claude_7d_row.update(claude_7d)
+            self._claude_7d_row.update(claude_7d, is_active=bool(claude_7d and primary_bucket == "3p-weekly"))
 
         if self._quota_group:
             active_model = str(summary.get("active_model") or limits.get("active_model") or "")

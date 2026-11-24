@@ -86,7 +86,6 @@ class RateLimits:
     observed_at: datetime
     account_email: str = ""
     active_model: str = ""
-    gemini_argon_weekly: RateWindow | None = None
     gemini_weekly: RateWindow | None = None
     claude_gpt_weekly: RateWindow | None = None
     groups: list[ModelGroupQuota] = field(default_factory=list)
@@ -443,7 +442,7 @@ def collect_metrics(antigravity_home: Path, now: datetime | None = None) -> Dash
         today_minutes=_activity_minutes(all_event_times, today),
         today_sessions=sum(1 for item in top_sessions if item.today_minutes > 0),
         generated_at=now,
-        active_model=active_model or "Gemini 4 Argon (Medium)",
+        active_model=active_model,
         account_email=account_email,
         rate_limits=None,
     )

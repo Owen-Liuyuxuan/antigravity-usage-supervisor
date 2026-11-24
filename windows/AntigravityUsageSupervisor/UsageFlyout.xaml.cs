@@ -37,7 +37,6 @@ public partial class UsageFlyout : Window
     internal static string Compact(double value) => value >= 1_000_000 ? $"{value / 1_000_000:0.##}M" : value >= 1000 ? $"{value / 1000:0.#}K" : $"{value:0}";
     private static readonly (string Key, string Label)[] QuotaRows =
     [
-        ("gemini_argon_weekly", "Gemini Argon · 每周"),
         ("gemini_5h", "Gemini · 5 小时"),
         ("gemini_weekly", "Gemini · 每周"),
         ("claude_gpt_5h", "Claude 和 GPT · 5 小时"),
@@ -78,6 +77,10 @@ public partial class UsageFlyout : Window
 
     internal static (string Label, double? Percent) TrayQuota(JsonNode? limits)
     {
+        var gemini5h = Percent(limits?["gemini_5h"]);
+        var geminiWeekly = Percent(limits?["gemini_weekly"]);
+        if (gemini5h is double g5 && geminiWeekly is double gw)
+            return gw > g5 ? ("Gemini · 每周", gw) : ("Gemini · 5 小时", g5);
         foreach (var (key, label) in QuotaRows)
             if (Percent(limits?[key]) is double percent) return (label, percent);
         return ("账户", Percent(limits?["primary"]) ?? Percent(limits?["secondary"]));

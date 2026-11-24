@@ -2,43 +2,32 @@
 
 ## 1. How Antigravity Tracks Quota for Google AI Pro Individual Accounts
 
-### Hydrogen verification — 2026-11-13
+### Unified Gemini Models & Carbon verification — 2026-11-24
 
-A real `gemini-4-hydrogen-low` generation succeeded while Argon's weekly quota
-was exhausted. Before the request, Hydrogen, Flash and the regular Gemini
-group all reported 100% remaining. Afterwards:
+Live Cloud Code Assist inspection on 2026-11-24 confirmed that Google removed the
+separate `Gemini 4 Argon` (`gemini-argon-wtu-weekly`) quota group and unified all
+Gemini models—including **Gemini 4 Carbon**—under **two model groups and four windows**:
 
-- All four Hydrogen variants and all Gemini 3.8 Flash variants reported exactly
-  `remainingFraction: 0.9994572` and the same reset time.
-- The authoritative `gemini-5h` bucket reported `0.9994572`, while
-  `gemini-weekly` reported `0.99984485`.
-- Argon and `gemini-pro-orchestrator-g1-pro` remained at `0`, sharing the
-  Argon weekly reset time (`2026-11-17T04:49:13Z`).
+1. **Gemini Models:** `gemini-weekly` and `gemini-5h`, shared by:
+   `Gemini 4 Neon`, `Gemini 4 Carbon`, `Gemini 4 Argon`, `Gemini 4 Hydrogen`,
+   `Orchestrator (Neon)`, `Orchestrator (Carbon)`, `Orchestrator (Argon)`, and
+   `Gemini 3.8 Flash` (plus Flash/Pro variants).
+2. **Claude and GPT models:** `3p-weekly` and `3p-5h`, shared by:
+   `Claude Opus 5.5`, `Claude Sonnet 5.5`, and `GPT-OSS 120B`.
 
-Thus **Hydrogen shares the regular Gemini five-hour and weekly allowance with
-Flash/Pro on this Google AI Pro account**. It is not part of the separate Argon
-allowance. The advertised orchestrator is labelled **Orchestrator (Argon)**;
-it is not a way around Argon's exhausted quota. No paid-credit override was used.
-The parser must match Argon explicitly, never treat all `gemini-4` ids as Argon.
+In `retrieveUserQuota`, `gemini-4-argon-*`, `gemini-4-carbon-*`, `gemini-4-hydrogen-*`,
+`gemini-4-neon-*`, `gemini-3.8-flash-*`, and `gemini-pro-orchestrator*` all report
+identical `remainingFraction` and `resetTime` values.
 
-### Earlier account layout
+### Earlier account layout (historical: Oct–Nov 2026)
 
 Antigravity (`agy` CLI and Antigravity IDE) authenticates individual Google AI Pro
 users via consumer OAuth (`auth_method: "consumer"`) and maps the account to tier
 `g1-pro-tier` (`Google AI Pro`) under companion project `aicode-consumers`.
 
-Live verification on 2026-10-24 found **three model groups and five windows**
-for this Google AI Pro account:
-
-1. **Gemini Models:** `gemini-weekly` and `gemini-5h`, shared by Flash and Pro.
-2. **Claude and GPT models:** `3p-weekly` and `3p-5h`.
-3. **Gemini 4 Argon:** separate `gemini-argon-wtu-weekly` on paid Pro.
-   The server describes Ultra as including higher Argon quota in the larger
-   Gemini quota bucket; do not assume this account's layout applies to all tiers.
-
-The verified snapshot reported **0.81% remaining for Argon** and **98.75%
-remaining for Gemini Models weekly**. These are distinct allowances. The panel
-is pinned to Argon; all five windows appear in Details.
+Earlier live verification on 2026-10-24 (and Hydrogen verification on 2026-11-13) had
+observed a third separate `Gemini 4 Argon` (`gemini-argon-wtu-weekly`) group before
+Google merged Argon into the shared `Gemini Models` group in November 2026.
 
 `retrieveUserQuotaSummary` supplies explicit group/window identifiers and takes
 precedence. Per-model data is a fallback for absent families. A weekly limit
@@ -64,7 +53,7 @@ During investigation on this system, three candidate mechanisms were analyzed an
   2. `POST https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`
      - Returns high-precision per-model `remainingFraction` (e.g. `0.977231` -> `2.3% used`) and `resetTime` reflecting real-time `agy` CLI usage.
   3. `POST https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary` (and `cloudcode-pa`)
-     - Returns all five explicit buckets across Gemini Models, Claude and GPT models, and Gemini 4 Argon.
+     - Returns all four explicit buckets across Gemini Models and Claude and GPT models.
 - **Why It Is Most Reliable:**
   - Works whether the Antigravity IDE or `agy` CLI is currently running or closed.
   - When `agy` is closed and `access_token` expires after 1 hour, `account.py` refreshes the token in-memory using `refresh_token` against `https://oauth2.googleapis.com/token`.

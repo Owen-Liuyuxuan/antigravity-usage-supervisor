@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml/badge.svg)](https://github.com/Owen-Liuyuxuan/antigravity-usage-supervisor/actions/workflows/ci.yml)
 
-A desktop monitor for **Argon weekly quota and the shared Neon / Hydrogen /
-Flash / Pro allowance**, with local token and activity estimates.
+A desktop monitor for **shared Gemini quota (Neon / Carbon / Argon / Hydrogen /
+Flash / Pro) and Claude & GPT allowances**, with local token and activity estimates.
 
 | Platform | Interface | Installation |
 | --- | --- | --- |
@@ -11,17 +11,18 @@ Flash / Pro allowance**, with local token and activity estimates.
 | Windows x64 / ARM64 | WPF tray app and usage flyout | [Windows installation](docs/WINDOWS.md) |
 
 On Ubuntu, the top panel shows
-`A 28.75% · G 1.01%`: `A` is Argon's 7-day quota used and `G` is Gemini's
-5-hour quota used. The popover shows both allowances separately, reset countdowns,
-and local activity.
+`G 1.01%`: Gemini's 5-hour quota used across Neon, Carbon,
+Argon, Hydrogen, Flash, and Pro. The popover shows the tighter Gemini window,
+the other Gemini window, Claude & GPT allowance, reset countdowns, and local activity.
 
 ## Ubuntu Features & Components
 
-- **GNOME Shell extension:** Argon and shared Neon / Hydrogen / Flash / Pro allowance in the panel and popover,
+- **GNOME Shell extension:** Unified Gemini Models (Neon / Carbon / Argon / Hydrogen / Flash / Pro)
+  and Claude & GPT allowances in the panel and popover,
   with two decimal places and warning colors based on quota consumed. Missing
   quota data displays `—`; another family's quota is never substituted.
-- **Details tab:** All five quota windows: Argon weekly, Gemini Models weekly
-  and five-hour, and Claude & GPT weekly and five-hour.
+- **Details tab:** All four quota windows: Gemini Models 5-hour and 7-day,
+  and Claude & GPT 5-hour and 7-day.
 - **Settings tab:** Personal token/focus goals, notification threshold, refresh
   interval, and data source.
 - **D-Bus service:** Queries the authenticated Cloud Code Assist quota API and
@@ -39,8 +40,8 @@ See the [usage guide](docs/USAGE.md), [architecture](docs/ARCHITECTURE.md), and
    - Reads the locally authenticated Antigravity OAuth credentials from GNOME Keyring (`org.freedesktop.secrets`, `service="gemini", username="antigravity"`) or `~/.config/antigravity/plugin-secrets.json`, automatically refreshing expired access tokens in-memory.
    - Queries `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` across both Cloud Code Assist endpoints to obtain:
      - **Plan tier:** `Google AI Pro` (`g1-pro-tier`)
-     - **Panel and hero:** Argon 7-day used percentage (`10,080` minutes) and Gemini 5-hour used percentage in the top panel; popover shows Argon weekly allowance alongside the tighter shared Gemini weekly/five-hour allowance used by Neon / Hydrogen / Flash / Pro.
-     - **Details:** Gemini Models and Claude & GPT each have explicit weekly and five-hour windows.
+     - **Panel and hero:** Gemini 5-hour (`300` minutes) used percentage in the top panel; popover shows the tighter Gemini allowance alongside the companion Gemini window and Claude & GPT allowance, shared across Neon / Carbon / Argon / Hydrogen / Flash / Pro.
+     - **Details:** Gemini Models and Claude & GPT each have explicit five-hour and weekly windows.
    - Explicit summary buckets take precedence over per-model fallback values.
      Reset countdown length is not used to guess a weekly window.
    - Falls back to the local `language_server_linux_x64` Connect-RPC (`GetUserStatus`) or cached network limits (`~/.cache/antigravity-usage-supervisor/`) when offline.
@@ -105,7 +106,7 @@ Then enable the extension:
 gnome-extensions enable antigravity-usage-supervisor@owen.local
 ```
 
-The `A <pct>% · G <pct>%` indicator will appear in the top-right panel.
+The `G <pct>%` indicator will appear in the top-right panel.
 
 > **Note on GNOME Shell Versions:** `extension/metadata.json` lists GNOME Shell `42`, `43`, and `44` (Ubuntu 22.04–23.04). If installing on Ubuntu 23.10 or 24.04+ (GNOME Shell `45`/`46`) or if GNOME Shell reports a version mismatch, disable version validation with:
 > ```bash

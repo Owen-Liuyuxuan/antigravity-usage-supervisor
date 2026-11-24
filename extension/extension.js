@@ -108,7 +108,7 @@ class AntigravityIndicator extends PanelMenu.Button {
             style_class: 'system-status-icon agy-panel-icon',
         });
         this._panelLabel = new St.Label({
-            text: 'A — · G —',
+            text: 'G —',
             y_align: Clutter.ActorAlign.CENTER,
         });
         panelBox.add_child(this._panelIcon);
@@ -138,21 +138,35 @@ class AntigravityIndicator extends PanelMenu.Button {
         this._primaryValue = new St.Label({ text: '—', style_class: 'agy-hero-value' });
         body.add_child(this._primaryValue);
         this._primaryCaption = new St.Label({
-            text: 'Waiting for Google AI Pro usage data',
+            text: 'Neon / Carbon / Argon / Hydrogen / Flash / Pro\nWaiting for Google AI Pro usage data',
             style_class: 'agy-caption',
         });
         body.add_child(this._primaryCaption);
         this._primaryBar = new ProgressLine('agy-progress-primary');
         body.add_child(this._primaryBar.actor);
-        this._sharedCaption = new St.Label({
-            text: 'Neon / Hydrogen / Flash / Pro\nWaiting for shared Gemini quota',
-            style_class: 'agy-caption',
-        });
-        body.add_child(this._sharedCaption);
-        this._sharedReset = new St.Label({text: '', style_class: 'agy-reset'});
-        body.add_child(this._sharedReset);
-        this._sharedBar = new ProgressLine('agy-progress-primary');
-        body.add_child(this._sharedBar.actor);
+
+        const secondaryHeader = new St.BoxLayout({ style_class: 'agy-secondary-header' });
+        this._secondaryName = new St.Label({ text: '7-day allowance (Gemini)', x_expand: true });
+        this._secondaryValue = new St.Label({ text: '—', style_class: 'agy-secondary-value' });
+        secondaryHeader.add_child(this._secondaryName);
+        secondaryHeader.add_child(this._secondaryValue);
+        body.add_child(secondaryHeader);
+        this._secondaryBar = new ProgressLine('agy-progress-secondary');
+        body.add_child(this._secondaryBar.actor);
+        this._secondaryReset = new St.Label({ text: '', style_class: 'agy-reset' });
+        body.add_child(this._secondaryReset);
+
+        const claudeHeader = new St.BoxLayout({ style_class: 'agy-secondary-header' });
+        this._claudeName = new St.Label({ text: 'Claude & GPT allowance', x_expand: true });
+        this._claudeValue = new St.Label({ text: '—', style_class: 'agy-secondary-value' });
+        claudeHeader.add_child(this._claudeName);
+        claudeHeader.add_child(this._claudeValue);
+        body.add_child(claudeHeader);
+        this._claudeBar = new ProgressLine('agy-progress-tertiary');
+        body.add_child(this._claudeBar.actor);
+        this._claudeReset = new St.Label({ text: '', style_class: 'agy-reset' });
+        body.add_child(this._claudeReset);
+
         this._modelMeta = new St.Label({ text: '', style_class: 'agy-model-meta' });
         body.add_child(this._modelMeta);
 
@@ -230,11 +244,17 @@ class AntigravityIndicator extends PanelMenu.Button {
             : `ANTIGRAVITY · ${planName}`;
 
         const groups = limits.groups || [];
-        const argonGroup = groups.find(g => g.group_id === 'gemini_argon');
-        // Keep the panel pinned to Argon even when another model is active.
-        const heroWindow = limits.gemini_argon_weekly || (argonGroup && argonGroup.weekly)
-            || (limits.primary && limits.primary.bucket_id === 'gemini-argon-wtu-weekly'
-                ? limits.primary : null);
+        const geminiGroup = groups.find(g => g.group_id === 'gemini') || {};
+        const claudeGroup = groups.find(g => g.group_id === 'claude_gpt') || {};
+
+        const gemini5h = limits.gemini_5h || geminiGroup.five_hour
+            || (limits.primary && limits.primary.bucket_id === 'gemini-5h' ? limits.primary : null);
+        const gemini7d = limits.gemini_weekly || geminiGroup.weekly
+            || (limits.secondary && limits.secondary.bucket_id === 'gemini-weekly' ? limits.secondary : null);
+        const claude5h = limits.claude_gpt_5h || claudeGroup.five_hour
+            || (limits.primary && limits.primary.bucket_id === '3p-5h' ? limits.primary : null);
+        const claude7d = limits.claude_gpt_weekly || claudeGroup.weekly
+            || (limits.secondary && limits.secondary.bucket_id === '3p-weekly' ? limits.secondary : null);
 
         const usedPercent = w => {
             if (w.used_percent !== undefined)
@@ -246,42 +266,61 @@ class AntigravityIndicator extends PanelMenu.Button {
         const remainingPercent = w => w.remaining_percent !== undefined
             ? Number(w.remaining_percent) : Math.max(0, 100 - Number(w.used_percent || 0));
 
+        // Top panel shows used % for Gemini 5h only (shared by Neon, Carbon, Argon, Hydrogen, Flash, Pro).
+        const g5hText = gemini5h ? formatPercent(usedPercent(gemini5h)) : '—';
+        this._panelLabel.text = `G ${g5hText}`;
+
+        const geminiWindows = [gemini5h, gemini7d].filter(Boolean);
+        const heroWindow = geminiWindows.reduce((tightest, w) =>
+            !tightest || remainingPercent(w) < remainingPercent(tightest) ? w : tightest, null);
+
         if (heroWindow) {
             const usedNum = usedPercent(heroWindow);
             const remNum = remainingPercent(heroWindow);
             const pctUsed = formatPercent(usedNum);
             const pctLeft = formatPercent(remNum);
+            const winKind = heroWindow === gemini7d ? '7-day limit' : '5-hour limit';
             this._primaryValue.text = `${pctLeft} left`;
-            this._primaryCaption.text = `${windowName(heroWindow)}  ·  ${pctUsed} used  ·  ${resetText(heroWindow.resets_at)}`;
+            this._primaryCaption.text = `Neon / Carbon / Argon / Hydrogen / Flash / Pro\n${winKind}  ·  ${pctUsed} used  ·  ${resetText(heroWindow.resets_at)}`;
             this._primaryBar.setFraction(remNum / 100);
-            this._setUrgency(usedNum);
+            this._setUrgency(gemini5h ? usedPercent(gemini5h) : 0);
         } else {
-            this._primaryValue.text = 'Argon quota unavailable';
+            this._primaryValue.text = 'Gemini quota unavailable';
             this._primaryCaption.text = 'Check Antigravity sign-in or refresh';
             this._primaryBar.setFraction(0);
             this._setUrgency(0);
         }
 
-        // Separate Argon's dedicated weekly limit from Neon/Hydrogen/Flash/Pro.
-        // Top panel shows used % for Argon 7d and Gemini 5h only.
-        const geminiGroup = groups.find(g => g.group_id === 'gemini') || {};
-        const gemini5hWindow = limits.gemini_5h || geminiGroup.five_hour || null;
-        const argonText = heroWindow ? formatPercent(usedPercent(heroWindow)) : '—';
-        const gemini5hText = gemini5hWindow ? formatPercent(usedPercent(gemini5hWindow)) : '—';
-        this._panelLabel.text = `A ${argonText} · G ${gemini5hText}`;
-
-        const sharedWindows = [limits.gemini_weekly || geminiGroup.weekly, gemini5hWindow].filter(Boolean);
-        const sharedWindow = sharedWindows.reduce((tightest, w) =>
-            !tightest || remainingPercent(w) < remainingPercent(tightest) ? w : tightest, null);
-        if (sharedWindow) {
-            const left = remainingPercent(sharedWindow);
-            this._sharedCaption.text = `Neon / Hydrogen / Flash / Pro\n${formatPercent(left)} left · shared ${sharedWindow.window_minutes === 10080 ? 'weekly' : '5-hour'} limit`;
-            this._sharedReset.text = resetText(sharedWindow.resets_at);
-            this._sharedBar.setFraction(left / 100);
+        const otherGemini = heroWindow === gemini7d ? gemini5h : gemini7d;
+        const otherGeminiFallback = heroWindow === gemini7d
+            ? '5-hour allowance (Gemini)' : '7-day allowance (Gemini)';
+        if (otherGemini) {
+            const left = remainingPercent(otherGemini);
+            this._secondaryName.text = windowName(otherGemini);
+            this._secondaryValue.text = `${formatPercent(left)} left`;
+            this._secondaryBar.setFraction(left / 100);
+            this._secondaryReset.text = `${formatPercent(usedPercent(otherGemini))} used  ·  ${resetText(otherGemini.resets_at)}`;
         } else {
-            this._sharedCaption.text = 'Neon / Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
-            this._sharedReset.text = '';
-            this._sharedBar.setFraction(0);
+            this._secondaryName.text = otherGeminiFallback;
+            this._secondaryValue.text = '—';
+            this._secondaryBar.setFraction(0);
+            this._secondaryReset.text = 'Not reported';
+        }
+
+        const claudeWindows = [claude5h, claude7d].filter(Boolean);
+        const claudeWindow = claudeWindows.reduce((tightest, w) =>
+            !tightest || remainingPercent(w) < remainingPercent(tightest) ? w : tightest, null);
+        if (claudeWindow) {
+            const left = remainingPercent(claudeWindow);
+            this._claudeName.text = windowName(claudeWindow);
+            this._claudeValue.text = `${formatPercent(left)} left`;
+            this._claudeBar.setFraction(left / 100);
+            this._claudeReset.text = `${formatPercent(usedPercent(claudeWindow))} used  ·  ${resetText(claudeWindow.resets_at)}`;
+        } else {
+            this._claudeName.text = 'Claude & GPT allowance';
+            this._claudeValue.text = '—';
+            this._claudeBar.setFraction(0);
+            this._claudeReset.text = 'Not reported';
         }
 
         const activeModel = summary.active_model || limits.active_model || '';
@@ -379,15 +418,20 @@ class AntigravityIndicator extends PanelMenu.Button {
     }
 
     _showError(message) {
-        this._panelLabel.text = 'A — · G —';
+        this._panelLabel.text = 'G —';
         this._liveLabel.text = '● OFFLINE';
         this._liveLabel.add_style_class_name('agy-error');
         this._primaryValue.text = 'Unavailable';
         this._primaryCaption.text = message;
         this._primaryBar.setFraction(0);
-        this._sharedCaption.text = 'Neon / Hydrogen / Flash / Pro\nShared Gemini quota unavailable';
-        this._sharedReset.text = '';
-        this._sharedBar.setFraction(0);
+        this._secondaryName.text = '7-day allowance (Gemini)';
+        this._secondaryValue.text = '—';
+        this._secondaryBar.setFraction(0);
+        this._secondaryReset.text = '';
+        this._claudeName.text = 'Claude & GPT allowance';
+        this._claudeValue.text = '—';
+        this._claudeBar.setFraction(0);
+        this._claudeReset.text = '';
     }
 
     destroy() {

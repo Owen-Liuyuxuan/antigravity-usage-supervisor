@@ -40,7 +40,7 @@ accounts:
 1. **Cloud Code Assist API (`daily-cloudcode-pa.googleapis.com` & `cloudcode-pa.googleapis.com`):**
    - Reads OAuth credentials stored by `agy` in GNOME Keyring (`service="gemini", username="antigravity"`) or `~/.config/antigravity/plugin-secrets.json`.
    - Refreshes expired OAuth access tokens in-memory via `oauth2.googleapis.com/token`.
-   - Calls `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` to obtain real-time `remainingFraction` and `resetTime` for **Gemini 4 Argon** (weekly), **Gemini Models**, and **Claude & GPT Models** (each five-hour and weekly). Explicit summary windows take precedence over per-model fallbacks.
+   - Calls `v1internal:loadCodeAssist`, `v1internal:retrieveUserQuota`, and `v1internal:retrieveUserQuotaSummary` to obtain real-time `remainingFraction` and `resetTime` for **Gemini Models** (Neon, Carbon, Argon, Hydrogen, Flash & Pro) and **Claude & GPT Models** (each five-hour and weekly). Explicit summary windows take precedence over per-model fallbacks.
 2. **Local Language Server Connect-RPC (`language_server_linux_x64`):**
    - Fallback to `POST /exa.language_server_pb.LanguageServerService/GetUserStatus` when an authenticated local IDE language server is active.
 3. **Network Cache (`src/antigravity_usage_supervisor/network_cache.py`):**
@@ -57,6 +57,6 @@ Owns `io.github.owen.AntigravityUsageSupervisor` on the user session bus at
 
 ### GNOME Shell extension (`extension/extension.js`)
 
-Renders the `A <percent>% · G <percent>%` top-panel indicator and frameless popover.
-Argon / Orchestrator is separate from shared Hydrogen / Flash / Pro quota. Performs
-only asynchronous D-Bus calls.
+Renders the `G <percent>%` (Gemini 5-hour used) top-panel indicator and frameless popover
+showing shared Gemini (Neon / Carbon / Argon / Hydrogen / Flash / Pro) and Claude & GPT
+allowances. Performs only asynchronous D-Bus calls.
